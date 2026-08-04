@@ -1,0 +1,420 @@
+@import "bootstrap/dist/css/bootstrap.min.css";
+
+:root {
+    --sf-primary: #164e63;
+    --sf-primary-dark: #083344;
+    --sf-secondary: #0f766e;
+    --sf-accent: #14b8a6;
+    --sf-surface: #ffffff;
+    --sf-background: #f3f7f8;
+    --sf-text: #17242b;
+    --sf-muted: #667780;
+    --sf-border: #d8e2e6;
+    --sf-danger: #b42318;
+}
+
+[x-cloak] {
+    display: none !important;
+}
+
+html,
+body {
+    min-height: 100%;
+}
+
+body {
+    background: var(--sf-background);
+    color: var(--sf-text);
+    font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+}
+
+a {
+    color: var(--sf-primary);
+}
+
+a:hover {
+    color: var(--sf-primary-dark);
+}
+
+.auth-page {
+    min-height: 100vh;
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(20, 184, 166, 0.14),
+            transparent 34rem
+        ),
+        var(--sf-background);
+}
+
+.auth-brand-panel {
+    min-height: 100vh;
+    background:
+        linear-gradient(
+            145deg,
+            rgba(8, 51, 68, 0.97),
+            rgba(15, 118, 110, 0.94)
+        );
+    color: #ffffff;
+}
+
+.auth-brand-content {
+    max-width: 34rem;
+}
+
+.auth-logo {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 3.5rem;
+    height: 3.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.12);
+    font-size: 1.05rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+}
+
+.auth-card {
+    width: 100%;
+    max-width: 31rem;
+    border: 1px solid var(--sf-border);
+    border-radius: 1.25rem;
+    background: var(--sf-surface);
+    box-shadow: 0 1.5rem 4rem rgba(17, 45, 55, 0.12);
+}
+
+.auth-card .form-control {
+    min-height: 3rem;
+    border-color: var(--sf-border);
+    border-radius: 0.7rem;
+}
+
+.auth-card .form-control:focus {
+    border-color: var(--sf-accent);
+    box-shadow: 0 0 0 0.2rem rgba(20, 184, 166, 0.16);
+}
+
+.auth-card .input-group .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.auth-card .input-group .btn {
+    border-color: var(--sf-border);
+    border-top-right-radius: 0.7rem;
+    border-bottom-right-radius: 0.7rem;
+}
+
+.btn-smartfactory {
+    min-height: 3rem;
+    border-color: var(--sf-primary);
+    border-radius: 0.7rem;
+    background: var(--sf-primary);
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.btn-smartfactory:hover,
+.btn-smartfactory:focus {
+    border-color: var(--sf-primary-dark);
+    background: var(--sf-primary-dark);
+    color: #ffffff;
+}
+
+.security-note {
+    border-left: 0.25rem solid var(--sf-accent);
+    background: #edfafa;
+    color: #28545a;
+}
+
+.app-navbar {
+    background: var(--sf-primary-dark);
+}
+
+.app-shell {
+    min-height: calc(100vh - 4.25rem);
+}
+
+.app-card {
+    border: 1px solid var(--sf-border);
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1.5rem rgba(17, 45, 55, 0.06);
+}
+
+.text-muted-smartfactory {
+    color: var(--sf-muted);
+}
+
+@media (max-width: 991.98px) {
+    .auth-brand-panel {
+        min-height: auto;
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Phase 5 Step 20L â€” role-aware operational charts
+|--------------------------------------------------------------------------
+*/
+
+.sf-chart-section {
+    margin-bottom: 1.5rem;
+}
+
+.sf-chart-card {
+    overflow: hidden;
+}
+
+.sf-chart-card__header {
+    border-bottom: 1px solid var(--sf-border);
+    padding: 1rem 1.25rem;
+}
+
+.sf-chart-card__body {
+    padding: 1rem;
+}
+
+.sf-chart {
+    min-height: 18rem;
+    width: 100%;
+}
+
+.sf-chart-svg {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 18rem;
+    overflow: visible;
+}
+
+.sf-chart-svg--donut {
+    min-height: 17rem;
+}
+
+.sf-chart-grid-line {
+    stroke: #d9e3e7;
+    stroke-width: 1;
+}
+
+.sf-chart-axis-label {
+    fill: #5d6e76;
+    font-family: inherit;
+    font-size: 12px;
+}
+
+.sf-chart-axis-label--category {
+    fill: var(--sf-text);
+    font-weight: 600;
+}
+
+.sf-chart-bar,
+.sf-chart-point,
+.sf-chart-donut-segment {
+    outline: none;
+}
+
+.sf-chart-line {
+    vector-effect: non-scaling-stroke;
+}
+
+.sf-chart-donut-total {
+    fill: var(--sf-text);
+    font-family: inherit;
+    font-size: 22px;
+    font-weight: 700;
+}
+
+.sf-chart-donut-label {
+    fill: var(--sf-text);
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.sf-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1rem;
+    margin: 0.75rem 0 0;
+    padding: 0;
+    list-style: none;
+    color: var(--sf-muted);
+    font-size: 0.82rem;
+}
+
+.sf-chart-legend li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.sf-chart-legend__swatch {
+    display: inline-block;
+    width: 0.8rem;
+    height: 0.8rem;
+    border-radius: 0.2rem;
+}
+
+.sf-chart-empty {
+    display: grid;
+    min-height: 18rem;
+    place-items: center;
+    border: 1px dashed var(--sf-border);
+    border-radius: 0.75rem;
+    color: var(--sf-muted);
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.sf-chart-data-table {
+    margin-top: 1rem;
+    border-top: 1px solid var(--sf-border);
+    padding-top: 0.75rem;
+}
+
+.sf-chart-data-table summary {
+    cursor: pointer;
+    color: var(--sf-primary);
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.sf-chart-data-table .table {
+    margin-top: 0.75rem;
+    font-size: 0.82rem;
+}
+
+@media (max-width: 767.98px) {
+    .sf-chart {
+        min-height: 15rem;
+    }
+
+    .sf-chart-svg {
+        min-width: 38rem;
+    }
+
+    .sf-chart-card__body {
+        overflow-x: auto;
+    }
+
+    .sf-chart-svg--donut {
+        min-width: 30rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sf-chart *,
+    .sf-chart *::before,
+    .sf-chart *::after {
+        scroll-behavior: auto !important;
+        transition: none !important;
+        animation: none !important;
+    }
+}
+
+/*
+|--------------------------------------------------------------------------
+| Phase 5 Step 20O — drill-down and interface states
+|--------------------------------------------------------------------------
+*/
+
+.sf-state-panel {
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+    border: 1px dashed var(--sf-border);
+    border-radius: 1rem;
+    background: var(--sf-surface);
+    padding: 1.5rem;
+}
+
+.sf-state-panel__icon {
+    display: grid;
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    place-items: center;
+    border-radius: 999px;
+    background: #e6f5f4;
+    color: var(--sf-secondary);
+    font-size: 1.1rem;
+    font-weight: 800;
+}
+
+.sf-state-panel--warning {
+    border-color: #f4c95d;
+    background: #fffaf0;
+}
+
+.sf-state-panel--warning .sf-state-panel__icon {
+    background: #fff1c2;
+    color: #7a5200;
+}
+
+.sf-state-panel--error {
+    border-color: #efb0aa;
+    background: #fff5f4;
+}
+
+.sf-state-panel--error .sf-state-panel__icon {
+    background: #fde2df;
+    color: var(--sf-danger);
+}
+
+.sf-state-panel--not-applicable {
+    background: #f8fafb;
+}
+
+form.sf-is-loading {
+    cursor: progress;
+    opacity: 0.78;
+}
+
+form.sf-is-loading :is(
+    input,
+    select,
+    textarea,
+    button
+) {
+    cursor: progress;
+}
+
+.sf-drilldown-card {
+    cursor: pointer;
+    transition:
+        transform 150ms ease,
+        box-shadow 150ms ease,
+        border-color 150ms ease;
+}
+
+.sf-drilldown-card:hover,
+.sf-drilldown-card:focus-visible {
+    border-color: var(--sf-accent);
+    box-shadow: 0 0.9rem 2rem rgba(17, 45, 55, 0.12);
+    outline: none;
+    transform: translateY(-2px);
+}
+
+.sf-chart-card__action {
+    white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sf-drilldown-card {
+        transition: none;
+    }
+
+    .sf-drilldown-card:hover,
+    .sf-drilldown-card:focus-visible {
+        transform: none;
+    }
+}

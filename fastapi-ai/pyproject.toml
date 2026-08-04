@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools==80.9.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "smartfactory-fastapi-ai"
+version = "0.1.0"
+description = "Secure internal FastAPI foundation for the SmartFactory DSS prototype."
+readme = "README.md"
+requires-python = "==3.12.*"
+dependencies = [
+    "fastapi==0.141.1",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.2",
+    "uvicorn==0.52.1",
+    "tzdata==2026.3",
+    "numpy==2.3.5",
+    "pandas==2.2.3",
+    "scikit-learn==1.8.0",
+    "joblib==1.5.3",
+    "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "ruff==0.16.1",
+]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers --disable-warnings"
+pythonpath = ["."]
+markers = [
+    "live_ollama: optional manual test requiring the local Ollama service",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+fail_under = 90
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "RUF"]
+ignore = ["S101"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106", "S107"]
+"app/core/config.py" = ["S105"]
+"app/core/logging.py" = ["S105"]
+"app/core/security.py" = ["B008"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"

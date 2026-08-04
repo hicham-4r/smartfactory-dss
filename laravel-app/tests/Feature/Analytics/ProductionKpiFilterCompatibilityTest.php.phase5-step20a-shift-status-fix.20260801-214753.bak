@@ -1,0 +1,243 @@
+<?php
+
+namespace Tests\Feature\Analytics;
+
+use App\DTOs\Analytics\AnalyticsFilter;
+use App\Models\Product;
+use App\Models\ProductionLine;
+use App\Models\Shift;
+use App\Repositories\Contracts\ProductionAnalyticsRepositoryInterface;
+use App\Services\Analytics\ProductionKpiService;
+use Carbon\CarbonImmutable;
+use Database\Seeders\ProductionMasterDataSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Tests\TestCase;
+
+class ProductionKpiFilterCompatibilityTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(
+            ProductionMasterDataSeeder::class
+        );
+    }
+
+    public function test_case_only_duplicate_shifts_are_displayed_once(): void
+    {
+        $original = Shift::query()
+            ->orderBy('id')
+            ->firstOrFail();
+
+        Shift::create([
+            'code' => 'DUP-'.$original->code,
+            'name' => strtoupper($original->name),
+            'starts_at' => $original->starts_at,
+            'ends_at' => $original->ends_at,
+            'crosses_midnight' =>
+                $original->crosses_midnight,
+            'is_active' => true,
+        ]);
+
+        $shifts = app(
+            ProductionAnalyticsRepositoryInterface::class
+        )->filterableShifts();
+
+        $matching = $shifts->filter(
+            static fn (object $shift): bool =>
+                strtolower(trim($shift->name))
+                === strtolower(trim($original->name))
+        );
+
+        $this->assertCount(1, $matching);
+    }
+
+    public function test_selecting_canonical_shift_includes_case_only_duplicate_ids(): void
+    {
+        $product = Product::query()->firstOrFail();
+        $line = ProductionLine::query()->firstOrFail();
+        $canonical = Shift::query()->firstOrFail();
+
+        $duplicate = Shift::create([
+            'code' => 'DUP-'.$canonical->code,
+            'name' => strtoupper($canonical->name),
+            'starts_at' => $canonical->starts_at,
+            'ends_at' => $canonical->ends_at,
+            'crosses_midnight' =>
+                $canonical->crosses_midnight,
+            'is_active' => true,
+        ]);
+
+        $this->createFlow(
+            productId: $product->getKey(),
+            lineId: $line->getKey(),
+            shiftId: $duplicate->getKey(),
+        );
+
+        $summary = app(
+            ProductionKpiService::class
+        )->summarize(
+            new AnalyticsFilter(
+                startDate: CarbonImmutable::parse(
+                    '2026-08-01',
+                    'UTC'
+                ),
+                endDate: CarbonImmutable::parse(
+                    '2026-08-01',
+                    'UTC'
+                ),
+                timezone: 'UTC',
+                shiftId: $canonical->getKey(),
+            )
+        );
+
+        $this->assertSame(
+            1,
+            $summary->validatedRecordCount
+        );
+
+        $this->assertSame(
+            '900.000',
+            $summary->primaryUnit()?->actualQuantity
+        );
+    }
+
+    public function test_compatibility_rows_contain_only_period_eligible_combinations(): void
+    {
+        $product = Product::query()->firstOrFail();
+        $line = ProductionLine::query()->firstOrFail();
+        $shift = Shift::query()->firstOrFail();
+
+        $this->createFlow(
+            productId: $product->getKey(),
+            lineId: $line->getKey(),
+            shiftId: $shift->getKey(),
+        );
+
+        $repository = app(
+            ProductionAnalyticsRepositoryInterface::class
+        );
+
+        $rows = $repository->filterCompatibilityRows(
+            new AnalyticsFilter(
+                startDate: CarbonImmutable::parse(
+                    '2026-08-01',
+                    'UTC'
+                ),
+                endDate: CarbonImmutable::parse(
+                    '2026-08-01',
+                    'UTC'
+                ),
+                timezone: 'UTC',
+            )
+        );
+
+        $this->assertNotEmpty($rows);
+        $this->assertSame(
+            $line->getKey(),
+            $rows[0]['production_line_id']
+        );
+        $this->assertSame(
+            $product->getKey(),
+            $rows[0]['product_id']
+        );
+
+        $outsideRows = $repository->filterCompatibilityRows(
+            new AnalyticsFilter(
+                startDate: CarbonImmutable::parse(
+                    '2026-09-01',
+                    'UTC'
+                ),
+                endDate: CarbonImmutable::parse(
+                    '2026-09-30',
+                    'UTC'
+                ),
+                timezone: 'UTC',
+            )
+        );
+
+        $this->assertSame([], $outsideRows);
+    }
+
+    private function createFlow(
+        int $productId,
+        int $lineId,
+        int $shiftId,
+    ): void {
+        $now = CarbonImmutable::parse(
+            '2026-08-01 12:00:00',
+            'UTC'
+        );
+
+        $orderId = DB::table(
+            'production_orders'
+        )->insertGetId([
+            'order_number' => 'PO-FILTER-COMPAT',
+            'product_id' => $productId,
+            'production_line_id' => $lineId,
+            'shift_id' => $shiftId,
+            'planned_start_at' =>
+                '2026-08-01 06:00:00',
+            'planned_end_at' =>
+                '2026-08-01 14:00:00',
+            'target_quantity' => '1000.000',
+            'quantity_unit' => 'bottles',
+            'status' => 'completed',
+            'source_system' => 'manual',
+            'import_status' => 'not_applicable',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        $batchId = DB::table(
+            'production_batches'
+        )->insertGetId([
+            'production_order_id' => $orderId,
+            'batch_number' => 'BAT-FILTER-COMPAT',
+            'sequence_number' => 1,
+            'status' => 'completed',
+            'planned_quantity' => '1000.000',
+            'actual_good_quantity' => '890.000',
+            'actual_rejected_quantity' => '10.000',
+            'quantity_unit' => 'bottles',
+            'scheduled_start_at' =>
+                '2026-08-01 06:00:00',
+            'actual_start_at' =>
+                '2026-08-01 06:00:00',
+            'actual_end_at' =>
+                '2026-08-01 14:00:00',
+            'source_system' => 'manual',
+            'import_status' => 'not_applicable',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+
+        DB::table('production_records')->insert([
+            'record_number' => 'PR-FILTER-COMPAT',
+            'production_batch_id' => $batchId,
+            'production_line_id' => $lineId,
+            'shift_id' => $shiftId,
+            'production_date' => '2026-08-01',
+            'started_at' => '2026-08-01 06:00:00',
+            'ended_at' => '2026-08-01 14:00:00',
+            'produced_quantity' => '900.000',
+            'good_quantity' => '890.000',
+            'rejected_quantity' => '10.000',
+            'quantity_unit' => 'bottles',
+            'runtime_minutes' => 420,
+            'downtime_minutes' => 60,
+            'status' => 'locked',
+            'validation_status' => 'validated',
+            'submitted_at' => $now,
+            'locked_at' => $now,
+            'source_system' => 'manual',
+            'import_status' => 'not_applicable',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ]);
+    }
+}

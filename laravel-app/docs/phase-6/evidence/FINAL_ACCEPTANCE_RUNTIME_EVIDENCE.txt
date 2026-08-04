@@ -1,0 +1,21 @@
+SMARTFACTORY DSS - PHASE 6 FINAL RUNTIME ACCEPTANCE
+Generated: 2026-08-03T22:15:02.8000888+01:00
+Project: C:\Users\OMEN\Herd\smartfactory-dss
+
+Laravel: Laravel Framework 12.64.0
+Python: Python 3.12.10
+Model run: f0147a01-3d1a-45d9-9cb8-c2686b531be0
+
+Verified:
+- Required Phase 6 documentation installed
+- AI Insights Laravel route registered
+- AI report export Laravel route registered
+- Laravel views compiled
+- Complete Laravel regression suite passed
+- Required FastAPI route contract present
+- Latest model registry passed integrity validation
+- Complete FastAPI regression suite passed
+
+Acceptance boundary:
+- Accepted as a secure simulated PFE prototype
+- Not accepted as validated industrial forecasting or predictive maintenance

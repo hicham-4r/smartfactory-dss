@@ -1,0 +1,225 @@
+<?php
+
+namespace App\Providers;
+
+use App\Contracts\ERP\ErpConnectorInterface;
+use App\Contracts\ERP\ErpRecordMapperInterface;
+use App\DTOs\ERP\SimulatedSageConnectorConfig;
+use App\Exceptions\ERP\ErpConfigurationException;
+use App\Listeners\RecordAuthenticationLoginAudit;
+use App\Listeners\RecordAuthenticationLogoutAudit;
+use App\Listeners\RecordTwoFactorChallengeFailedAudit;
+use App\Listeners\RecordTwoFactorConfirmedAudit;
+use App\Listeners\RecordTwoFactorDisabledAudit;
+use App\Listeners\RecordTwoFactorRecoveryCodesAudit;
+use App\Listeners\RecordTwoFactorSetupStartedAudit;
+use App\Models\ProductionBatch;
+use App\Models\ProductionEvent;
+use App\Models\ProductionOrder;
+use App\Models\ProductionRecord;
+use App\Models\User;
+use App\Observers\UserSecurityObserver;
+use App\Policies\ProductionBatchPolicy;
+use App\Policies\ProductionEventPolicy;
+use App\Policies\ProductionOrderPolicy;
+use App\Policies\ProductionRecordPolicy;
+use App\Policies\RolePolicy;
+use App\Repositories\Contracts\MasterDataBrowseRepositoryInterface;
+use App\Repositories\Contracts\ProductionExecutionRepositoryInterface;
+use App\Repositories\Contracts\ProductionMasterDataRepositoryInterface;
+use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Eloquent\EloquentMasterDataBrowseRepository;
+use App\Repositories\Eloquent\EloquentProductionExecutionRepository;
+use App\Repositories\Eloquent\EloquentProductionMasterDataRepository;
+use App\Repositories\Eloquent\EloquentRoleRepository;
+use App\Repositories\Eloquent\EloquentUserRepository;
+use App\Services\ERP\DisabledErpConnector;
+use App\Services\ERP\Mapping\SimulatedSageRecordMapper;
+use App\Services\ERP\SimulatedSageRestConnector;
+use Illuminate\Auth\Events\Login;
+use Illuminate\Auth\Events\Logout;
+use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Validation\Rules\Password;
+use Laravel\Fortify\Events\RecoveryCodesGenerated;
+use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
+use Laravel\Fortify\Events\TwoFactorAuthenticationDisabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationEnabled;
+use Laravel\Fortify\Events\TwoFactorAuthenticationFailed;
+use Spatie\Permission\Models\Role;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        $this->app->bind(
+            UserRepositoryInterface::class,
+            EloquentUserRepository::class
+        );
+
+        $this->app->bind(
+            RoleRepositoryInterface::class,
+            EloquentRoleRepository::class
+        );
+
+        $this->app->bind(
+            ProductionMasterDataRepositoryInterface::class,
+            EloquentProductionMasterDataRepository::class
+        );
+
+        $this->app->bind(
+            MasterDataBrowseRepositoryInterface::class,
+            EloquentMasterDataBrowseRepository::class
+        );
+
+        $this->app->bind(
+            ProductionExecutionRepositoryInterface::class,
+            EloquentProductionExecutionRepository::class
+        );
+
+        $this->app->singleton(
+            ErpRecordMapperInterface::class,
+            SimulatedSageRecordMapper::class
+        );
+
+        $this->app->singleton(
+            SimulatedSageConnectorConfig::class,
+
+            function (
+                $app
+            ): SimulatedSageConnectorConfig {
+                $settings = config(
+                    'erp.connectors.simulated_sage',
+                    []
+                );
+
+                return SimulatedSageConnectorConfig
+                    ::fromArray(
+                        settings:
+                            is_array($settings)
+                                ? $settings
+                                : [],
+
+                        allowInsecureTls:
+                            $app->environment(
+                                'local',
+                                'testing'
+                            )
+                    );
+            }
+        );
+
+        $this->app->singleton(
+            ErpConnectorInterface::class,
+
+            function (
+                $app
+            ): ErpConnectorInterface {
+                $driver = (string) config(
+                    'erp.default',
+                    'disabled'
+                );
+
+                return match ($driver) {
+                    'disabled' =>
+                        $app->make(
+                            DisabledErpConnector::class
+                        ),
+
+                    'simulated_sage' =>
+                        $app->make(
+                            SimulatedSageRestConnector::class
+                        ),
+
+                    default =>
+                        throw ErpConfigurationException
+                            ::unsupportedDriver(
+                                $driver
+                            ),
+                };
+            }
+        );
+    }
+
+    public function boot(): void
+    {
+        Paginator::useBootstrapFive();
+
+        Password::defaults(
+            fn (): Password =>
+                Password::min(12)
+                    ->max(128)
+                    ->mixedCase()
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+        );
+
+        Gate::policy(
+            Role::class,
+            RolePolicy::class
+        );
+
+        Gate::policy(
+            ProductionOrder::class,
+            ProductionOrderPolicy::class
+        );
+
+        Gate::policy(
+            ProductionBatch::class,
+            ProductionBatchPolicy::class
+        );
+
+        Gate::policy(
+            ProductionRecord::class,
+            ProductionRecordPolicy::class
+        );
+
+        Gate::policy(
+            ProductionEvent::class,
+            ProductionEventPolicy::class
+        );
+
+        User::observe(
+            UserSecurityObserver::class
+        );
+
+        Event::listen(
+            Login::class,
+            RecordAuthenticationLoginAudit::class
+        );
+
+        Event::listen(
+            Logout::class,
+            RecordAuthenticationLogoutAudit::class
+        );
+
+        Event::listen(
+            TwoFactorAuthenticationEnabled::class,
+            RecordTwoFactorSetupStartedAudit::class
+        );
+
+        Event::listen(
+            TwoFactorAuthenticationConfirmed::class,
+            RecordTwoFactorConfirmedAudit::class
+        );
+
+        Event::listen(
+            TwoFactorAuthenticationDisabled::class,
+            RecordTwoFactorDisabledAudit::class
+        );
+
+        Event::listen(
+            RecoveryCodesGenerated::class,
+            RecordTwoFactorRecoveryCodesAudit::class
+        );
+
+        Event::listen(
+            TwoFactorAuthenticationFailed::class,
+            RecordTwoFactorChallengeFailedAudit::class
+        );
+    }
+}

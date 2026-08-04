@@ -1,0 +1,38 @@
+* text=auto
+
+# Cross-platform source files
+*.php text eol=lf
+*.blade.php text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.xml text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.env.example text eol=lf
+
+# Windows command scripts
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.xls binary
+*.docx binary
+*.pptx binary
+*.woff binary
+*.woff2 binary
+*.ttf binary

@@ -1,0 +1,73 @@
+<?php
+
+namespace App\DTOs\Analytics;
+
+use Carbon\CarbonImmutable;
+use JsonSerializable;
+
+final readonly class ProductionKpiSummary implements JsonSerializable
+{
+    /**
+     * @param list<ProductionKpiUnitSummary> $units
+     */
+    public function __construct(
+        public AnalyticsFilter $filter,
+        public CarbonImmutable $generatedAt,
+        public array $units,
+        public int $validatedRecordCount,
+        public int $targetOrderCount,
+        public int $runtimeMinutes,
+        public int $downtimeMinutes,
+    ) {
+    }
+
+    public function isEmpty(): bool
+    {
+        return $this->units === [];
+    }
+
+    public function hasMixedUnits(): bool
+    {
+        return count($this->units) > 1;
+    }
+
+    public function primaryUnit(): ?ProductionKpiUnitSummary
+    {
+        return count($this->units) === 1
+            ? $this->units[0]
+            : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toArray(): array
+    {
+        return [
+            'filter' => $this->filter->toArray(),
+            'generated_at' => $this->generatedAt
+                ->utc()
+                ->toIso8601String(),
+            'unit_count' => count($this->units),
+            'has_mixed_units' => $this->hasMixedUnits(),
+            'validated_record_count' => $this->validatedRecordCount,
+            'target_order_count' => $this->targetOrderCount,
+            'runtime_minutes' => $this->runtimeMinutes,
+            'downtime_minutes' => $this->downtimeMinutes,
+            'units' => array_map(
+                static fn (
+                    ProductionKpiUnitSummary $unit
+                ): array => $unit->toArray(),
+                $this->units
+            ),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
+    }
+}

@@ -1,0 +1,377 @@
+@extends('layouts.app')
+
+@section('title', 'Production KPI Summary')
+
+@section('content')
+<div class="container py-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Production KPI Summary</h1>
+            <p class="text-muted mb-0">
+                Deterministic indicators calculated from validated DSS production records and scheduled production-order targets.
+            </p>
+        </div>
+
+        <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary">
+            Dashboard
+        </a>
+    </div>
+
+    @if ($errors->any())
+        <div class="alert alert-danger" role="alert">
+            <div class="fw-semibold mb-2">The filters could not be applied.</div>
+            <ul class="mb-0">
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
+    <div class="card shadow-sm mb-4">
+        <div class="card-header fw-semibold">Filters</div>
+
+        <div class="card-body">
+            <form
+                method="GET"
+                action="{{ route('analytics.production.index') }}"
+                class="row g-3"
+            >
+                <div class="col-md-3 col-xl-2">
+                    <label for="start_date" class="form-label">Start date</label>
+                    <input
+                        id="start_date"
+                        name="start_date"
+                        type="date"
+                        class="form-control"
+                        value="{{ $filter->startDateString() }}"
+                        required
+                    >
+                </div>
+
+                <div class="col-md-3 col-xl-2">
+                    <label for="end_date" class="form-label">End date</label>
+                    <input
+                        id="end_date"
+                        name="end_date"
+                        type="date"
+                        class="form-control"
+                        value="{{ $filter->endDateString() }}"
+                        required
+                    >
+                </div>
+
+                <div class="col-md-3 col-xl-2">
+                    <label for="timezone" class="form-label">Timezone</label>
+                    <select id="timezone" name="timezone" class="form-select" required>
+                        @foreach ($timezoneOptions as $timezone)
+                            <option
+                                value="{{ $timezone }}"
+                                @selected($filter->timezone === $timezone)
+                            >
+                                {{ $timezone }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-3 col-xl-3">
+                    <label for="production_line_id" class="form-label">
+                        Production line
+                    </label>
+                    <select
+                        id="production_line_id"
+                        name="production_line_id"
+                        class="form-select"
+                    >
+                        <option value="">All lines</option>
+                        @foreach ($productionLines as $line)
+                            <option
+                                value="{{ $line->id }}"
+                                @selected($filter->productionLineId === (int) $line->id)
+                            >
+                                {{ $line->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-xl-3">
+                    <label for="product_family_id" class="form-label">
+                        Product family
+                    </label>
+                    <select
+                        id="product_family_id"
+                        name="product_family_id"
+                        class="form-select"
+                    >
+                        <option value="">All families</option>
+                        @foreach ($productFamilies as $family)
+                            <option
+                                value="{{ $family->id }}"
+                                @selected($filter->productFamilyId === (int) $family->id)
+                            >
+                                {{ $family->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-xl-3">
+                    <label for="product_id" class="form-label">Product</label>
+                    <select id="product_id" name="product_id" class="form-select">
+                        <option value="">All products</option>
+                        @foreach ($products as $product)
+                            <option
+                                value="{{ $product->id }}"
+                                @selected($filter->productId === (int) $product->id)
+                            >
+                                {{ $product->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-xl-2">
+                    <label for="shift_id" class="form-label">Shift</label>
+                    <select id="shift_id" name="shift_id" class="form-select">
+                        <option value="">All shifts</option>
+                        @foreach ($shifts as $shift)
+                            <option
+                                value="{{ $shift->id }}"
+                                @selected($filter->shiftId === (int) $shift->id)
+                            >
+                                {{ $shift->name }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-xl-3">
+                    <label for="production_order_id" class="form-label">
+                        Production order
+                    </label>
+                    <select
+                        id="production_order_id"
+                        name="production_order_id"
+                        class="form-select"
+                    >
+                        <option value="">All orders</option>
+                        @foreach ($productionOrders as $order)
+                            <option
+                                value="{{ $order->id }}"
+                                @selected($filter->productionOrderId === (int) $order->id)
+                            >
+                                {{ $order->order_number }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-xl-2">
+                    <label for="status" class="form-label">Order status</label>
+                    <select id="status" name="status" class="form-select">
+                        <option value="">Approved/active statuses</option>
+                        @foreach ($orderStatuses as $status)
+                            <option
+                                value="{{ $status->value }}"
+                                @selected($filter->status === $status->value)
+                            >
+                                {{ $status->label() }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-12 d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-primary">Apply filters</button>
+                    <a
+                        href="{{ route('analytics.production.index') }}"
+                        class="btn btn-outline-secondary"
+                    >
+                        Reset
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert alert-info" role="status">
+        Period:
+        <strong>{{ $filter->startDateString() }}</strong>
+        to
+        <strong>{{ $filter->endDateString() }}</strong>
+        in
+        <strong>{{ $filter->timezone }}</strong>.
+        Calculated from
+        <strong>{{ $summary->validatedRecordCount }}</strong>
+        validated production record(s) and
+        <strong>{{ $summary->targetOrderCount }}</strong>
+        scheduled target order(s).
+    </div>
+
+    @if ($summary->isEmpty())
+        <div class="card shadow-sm mb-4">
+            <div class="card-body text-center py-5">
+                <h2 class="h5">No KPI data available</h2>
+                <p class="text-muted mb-0">
+                    No eligible scheduled targets or validated production records match the selected filters.
+                </p>
+            </div>
+        </div>
+    @elseif ($summary->primaryUnit())
+        @php($unit = $summary->primaryUnit())
+
+        <div class="row g-3 mb-4">
+            @foreach ([
+                ['Target quantity', $unit->targetQuantity, $unit->quantityUnit],
+                ['Actual quantity', $unit->actualQuantity, $unit->quantityUnit],
+                ['Good quantity', $unit->goodQuantity, $unit->quantityUnit],
+                ['Rejected quantity', $unit->rejectedQuantity, $unit->quantityUnit],
+            ] as [$label, $value, $suffix])
+                <div class="col-md-4 col-xl-3">
+                    <div class="card shadow-sm h-100">
+                        <div class="card-body">
+                            <div class="text-muted small">{{ $label }}</div>
+                            <div class="h3 mb-0">
+                                {{ number_format((float) $value, 3) }}
+                            </div>
+                            <div class="small text-muted">{{ $suffix }}</div>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+
+            <div class="col-md-4 col-xl-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Target achievement</div>
+                        <div class="h3 mb-0">
+                            {{ $unit->achievementPercentage === null ? 'N/A' : number_format($unit->achievementPercentage, 2).'%' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-xl-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Rejection rate</div>
+                        <div class="h3 mb-0">
+                            {{ $unit->rejectionPercentage === null ? 'N/A' : number_format($unit->rejectionPercentage, 2).'%' }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-xl-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Average production rate</div>
+                        <div class="h3 mb-0">
+                            {{ $unit->averageProductionRatePerHour === null ? 'N/A' : number_format((float) $unit->averageProductionRatePerHour, 3) }}
+                        </div>
+                        <div class="small text-muted">{{ $unit->quantityUnit }}/hour</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4 col-xl-3">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <div class="text-muted small">Observed utilization</div>
+                        <div class="h3 mb-0">
+                            {{ $unit->observedUtilizationPercentage === null ? 'N/A' : number_format($unit->observedUtilizationPercentage, 2).'%' }}
+                        </div>
+                        <div class="small text-muted">Runtime ÷ (runtime + downtime)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">Operating-time summary</div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <div class="text-muted small">Runtime</div>
+                        <div class="h4 mb-0">{{ number_format($unit->runtimeMinutes) }} minutes</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Downtime</div>
+                        <div class="h4 mb-0">{{ number_format($unit->downtimeMinutes) }} minutes</div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-muted small">Validated records</div>
+                        <div class="h4 mb-0">{{ number_format($unit->validatedRecordCount) }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    @else
+        <div class="alert alert-warning" role="alert">
+            Multiple quantity units are present. The application intentionally does not add incompatible units together. Review each unit separately below.
+        </div>
+
+        <div class="card shadow-sm mb-4">
+            <div class="card-header fw-semibold">KPI breakdown by quantity unit</div>
+            <div class="table-responsive">
+                <table class="table table-striped align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th scope="col">Unit</th>
+                        <th scope="col">Target</th>
+                        <th scope="col">Actual</th>
+                        <th scope="col">Achievement</th>
+                        <th scope="col">Good</th>
+                        <th scope="col">Rejected</th>
+                        <th scope="col">Rejection</th>
+                        <th scope="col">Rate/hour</th>
+                        <th scope="col">Runtime</th>
+                        <th scope="col">Downtime</th>
+                        <th scope="col">Observed utilization</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @foreach ($summary->units as $unit)
+                        <tr>
+                            <td class="fw-semibold">{{ $unit->quantityUnit }}</td>
+                            <td>{{ $unit->targetQuantity }}</td>
+                            <td>{{ $unit->actualQuantity }}</td>
+                            <td>{{ $unit->achievementPercentage === null ? 'N/A' : number_format($unit->achievementPercentage, 2).'%' }}</td>
+                            <td>{{ $unit->goodQuantity }}</td>
+                            <td>{{ $unit->rejectedQuantity }}</td>
+                            <td>{{ $unit->rejectionPercentage === null ? 'N/A' : number_format($unit->rejectionPercentage, 2).'%' }}</td>
+                            <td>{{ $unit->averageProductionRatePerHour ?? 'N/A' }}</td>
+                            <td>{{ $unit->runtimeMinutes }} min</td>
+                            <td>{{ $unit->downtimeMinutes }} min</td>
+                            <td>{{ $unit->observedUtilizationPercentage === null ? 'N/A' : number_format($unit->observedUtilizationPercentage, 2).'%' }}</td>
+                        </tr>
+                    @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
+    <div class="card border-secondary">
+        <div class="card-header fw-semibold">Interpretation and current limitations</div>
+        <div class="card-body">
+            <ul class="mb-0">
+                <li>
+                    Actual, good, rejected, runtime and downtime values include only records whose validation status is <strong>validated</strong>.
+                </li>
+                <li>
+                    Target quantity includes approved or active production orders whose planned start falls inside the selected timezone-aware period.
+                </li>
+                <li>
+                    Observed utilization is runtime divided by runtime plus recorded downtime. It is not yet the final scheduled line-utilization KPI because planned available time is not stored explicitly.
+                </li>
+                <li>
+                    All displayed values come from simulated ERP data or controlled DSS entries. They are prototype results, not real company production figures.
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+@endsection

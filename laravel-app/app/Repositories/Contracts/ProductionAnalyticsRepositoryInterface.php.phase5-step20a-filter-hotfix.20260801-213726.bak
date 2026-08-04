@@ -1,0 +1,37 @@
+<?php
+
+namespace App\Repositories\Contracts;
+
+use App\DTOs\Analytics\AnalyticsFilter;
+use Illuminate\Support\Collection;
+
+interface ProductionAnalyticsRepositoryInterface
+{
+    /**
+     * Aggregate validated production records in the selected period.
+     *
+     * @return list<object>
+     */
+    public function validatedProductionByUnit(
+        AnalyticsFilter $filter
+    ): array;
+
+    /**
+     * Aggregate scheduled production-order targets in the selected period.
+     *
+     * @return list<object>
+     */
+    public function scheduledTargetsByUnit(
+        AnalyticsFilter $filter
+    ): array;
+
+    /**
+     * Return a bounded list for the production-order filter.
+     *
+     * @return Collection<int, object>
+     */
+    public function filterableProductionOrders(
+        AnalyticsFilter $filter,
+        int $limit = 250
+    ): Collection;
+}

@@ -1,0 +1,85 @@
+# SmartFactory DSS repository exclusions
+
+# Local secrets and credentials
+**/.env
+**/.env.local
+**/.env.*.local
+**/.env.backup
+**/.env.production
+**/auth.json
+**/*.pem
+**/*.key
+**/*.pfx
+**/*.p12
+
+# Local databases and dumps
+**/database/*.sqlite
+**/database/*.sqlite3
+**/*.db
+**/*.sql
+**/*.dump
+
+# Dependencies, caches and local tooling
+**/vendor/
+**/node_modules/
+**/.venv/
+**/venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.phpunit.cache/
+**/.idea/
+**/.vscode/
+**/.fleet/
+**/.nova/
+**/.zed/
+
+# Runtime and generated application files
+**/storage/logs/
+**/storage/framework/
+**/storage/pail/
+**/public/build/
+**/public/hot
+**/public/storage/
+**/bootstrap/cache/*.php
+**/*.log
+**/tmp/
+
+# ML data and generated artifacts
+**/datasets/
+**/models/
+**/artifacts/
+**/*.joblib
+**/*.pkl
+**/*.pickle
+**/*.onnx
+**/*.h5
+**/*.pt
+**/*.pth
+
+# Installation packages and local backups
+/_phase6_backups/
+/backups/
+**/*.zip
+**/*.7z
+**/*.rar
+
+# Temporary diagnostic and source bundles
+/SMARTFACTORY_*_SOURCE_BUNDLE.txt
+/SMARTFACTORY_*_TARGETED_SOURCE_BUNDLE.txt
+/SMARTFACTORY_GIT_*_REPORT.txt
+/*_bundle.txt
+/erp_connector_current.txt
+
+# Operating-system files
+**/Thumbs.db
+**/.DS_Store
+
+## Source bundles and diagnostic reports in any project directory
+**/SMARTFACTORY_*_SOURCE_BUNDLE.txt
+**/SMARTFACTORY_*_TARGETED_SOURCE_BUNDLE.txt
+**/SMARTFACTORY_GIT_*_REPORT.txt
+**/*_bundle.txt
+## Generated source-capture files in any project directory
+**/SMARTFACTORY_*_SOURCE.txt
+**/SMARTFACTORY_*_REPORT.txt

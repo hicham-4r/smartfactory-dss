@@ -1,0 +1,506 @@
+<?php
+
+namespace App\Repositories\Eloquent;
+
+use App\DTOs\Analytics\AnalyticsFilter;
+use App\Enums\Production\ProductionOrderStatus;
+use App\Enums\Production\ProductionValidationStatus;
+use App\Repositories\Contracts\ProductionAnalyticsRepositoryInterface;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
+
+final class EloquentProductionAnalyticsRepository implements
+    ProductionAnalyticsRepositoryInterface
+{
+    public function validatedProductionByUnit(
+        AnalyticsFilter $filter
+    ): array {
+        $query = DB::table(
+            'production_records as pr'
+        )
+            ->join(
+                'production_batches as pb',
+                'pb.id',
+                '=',
+                'pr.production_batch_id'
+            )
+            ->join(
+                'production_orders as po',
+                'po.id',
+                '=',
+                'pb.production_order_id'
+            )
+            ->join(
+                'products as p',
+                'p.id',
+                '=',
+                'po.product_id'
+            )
+            ->where(
+                'pr.validation_status',
+                ProductionValidationStatus::Validated->value
+            )
+            ->whereIn(
+                'pr.import_status',
+                $this->includedImportStatuses()
+            )
+            ->whereDate(
+                'pr.production_date',
+                '>=',
+                $filter->startDateString()
+            )
+            ->whereDate(
+                'pr.production_date',
+                '<=',
+                $filter->endDateString()
+            );
+
+        $this->applyOrderFilters(
+            $query,
+            $filter
+        );
+
+        return $query
+            ->groupBy('pr.quantity_unit')
+            ->orderBy('pr.quantity_unit')
+            ->selectRaw(
+                'pr.quantity_unit as quantity_unit'
+            )
+            ->selectRaw(
+                'COUNT(pr.id) as validated_record_count'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(pr.produced_quantity), 0) as actual_quantity'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(pr.good_quantity), 0) as good_quantity'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(pr.rejected_quantity), 0) as rejected_quantity'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(pr.runtime_minutes), 0) as runtime_minutes'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(pr.downtime_minutes), 0) as downtime_minutes'
+            )
+            ->get()
+            ->all();
+    }
+
+    public function scheduledTargetsByUnit(
+        AnalyticsFilter $filter
+    ): array {
+        $query = DB::table(
+            'production_orders as po'
+        )
+            ->join(
+                'products as p',
+                'p.id',
+                '=',
+                'po.product_id'
+            )
+            ->whereIn(
+                'po.import_status',
+                $this->includedImportStatuses()
+            )
+            ->where(
+                'po.planned_start_at',
+                '>=',
+                $filter->utcStart()
+                    ->toDateTimeString()
+            )
+            ->where(
+                'po.planned_start_at',
+                '<',
+                $filter->utcEndExclusive()
+                    ->toDateTimeString()
+            );
+
+        $this->applyOrderFilters(
+            $query,
+            $filter
+        );
+
+        return $query
+            ->groupBy('po.quantity_unit')
+            ->orderBy('po.quantity_unit')
+            ->selectRaw(
+                'po.quantity_unit as quantity_unit'
+            )
+            ->selectRaw(
+                'COUNT(po.id) as target_order_count'
+            )
+            ->selectRaw(
+                'COALESCE(SUM(po.target_quantity), 0) as target_quantity'
+            )
+            ->get()
+            ->all();
+    }
+
+    public function filterableProductionOrders(
+        AnalyticsFilter $filter,
+        int $limit = 250
+    ): Collection {
+        $query = DB::table(
+            'production_orders as po'
+        )
+            ->join(
+                'products as p',
+                'p.id',
+                '=',
+                'po.product_id'
+            )
+            ->whereIn(
+                'po.import_status',
+                $this->includedImportStatuses()
+            )
+            ->where(
+                'po.planned_start_at',
+                '>=',
+                $filter->utcStart()
+                    ->toDateTimeString()
+            )
+            ->where(
+                'po.planned_start_at',
+                '<',
+                $filter->utcEndExclusive()
+                    ->toDateTimeString()
+            );
+
+        $this->applyOrderFilters(
+            $query,
+            $filter,
+            includeOrderId: false
+        );
+
+        $orders = $query
+            ->select([
+                'po.id',
+                'po.order_number',
+                'po.quantity_unit',
+                'po.planned_start_at',
+            ])
+            ->orderByDesc('po.planned_start_at')
+            ->orderByDesc('po.id')
+            ->limit(max(1, min($limit, 500)))
+            ->get();
+
+        if (
+            $filter->productionOrderId !== null
+            && ! $orders->contains(
+                'id',
+                $filter->productionOrderId
+            )
+        ) {
+            $selectedOrder = DB::table(
+                'production_orders'
+            )
+                ->where(
+                    'id',
+                    $filter->productionOrderId
+                )
+                ->first([
+                    'id',
+                    'order_number',
+                    'quantity_unit',
+                    'planned_start_at',
+                ]);
+
+            if ($selectedOrder !== null) {
+                $orders->prepend(
+                    $selectedOrder
+                );
+            }
+        }
+
+        return $orders;
+    }
+
+    public function filterableShifts(): Collection
+    {
+        return DB::table('shifts as s')
+            ->where('s.is_active', true)
+            ->selectRaw('MIN(s.id) as id')
+            ->selectRaw('MIN(s.name) as name')
+            ->selectRaw(
+                'LOWER(TRIM(s.name)) as shift_key'
+            )
+            ->selectRaw('MIN(s.starts_at) as starts_at')
+            ->selectRaw('MIN(s.ends_at) as ends_at')
+            ->groupByRaw(
+                'LOWER(TRIM(s.name)), s.starts_at, s.ends_at'
+            )
+            ->orderBy('starts_at')
+            ->orderBy('name')
+            ->get();
+    }
+
+    public function filterCompatibilityRows(
+        AnalyticsFilter $filter,
+        int $limit = 5000
+    ): array {
+        $rows = DB::table('production_orders as po')
+            ->join(
+                'products as p',
+                'p.id',
+                '=',
+                'po.product_id'
+            )
+            ->leftJoin(
+                'shifts as s',
+                's.id',
+                '=',
+                'po.shift_id'
+            )
+            ->whereIn(
+                'po.import_status',
+                $this->includedImportStatuses()
+            )
+            ->where(
+                function (Builder $eligible) use (
+                    $filter
+                ): void {
+                    $eligible
+                        ->where(
+                            function (Builder $scheduled) use (
+                                $filter
+                            ): void {
+                                $scheduled
+                                    ->where(
+                                        'po.planned_start_at',
+                                        '>=',
+                                        $filter->utcStart()
+                                            ->toDateTimeString()
+                                    )
+                                    ->where(
+                                        'po.planned_start_at',
+                                        '<',
+                                        $filter->utcEndExclusive()
+                                            ->toDateTimeString()
+                                    );
+                            }
+                        )
+                        ->orWhereExists(
+                            function (Builder $records) use (
+                                $filter
+                            ): void {
+                                $records
+                                    ->selectRaw('1')
+                                    ->from(
+                                        'production_batches as pb'
+                                    )
+                                    ->join(
+                                        'production_records as pr',
+                                        'pr.production_batch_id',
+                                        '=',
+                                        'pb.id'
+                                    )
+                                    ->whereColumn(
+                                        'pb.production_order_id',
+                                        'po.id'
+                                    )
+                                    ->where(
+                                        'pr.validation_status',
+                                        ProductionValidationStatus::Validated->value
+                                    )
+                                    ->whereIn(
+                                        'pr.import_status',
+                                        $this->includedImportStatuses()
+                                    )
+                                    ->whereDate(
+                                        'pr.production_date',
+                                        '>=',
+                                        $filter->startDateString()
+                                    )
+                                    ->whereDate(
+                                        'pr.production_date',
+                                        '<=',
+                                        $filter->endDateString()
+                                    );
+                            }
+                        );
+                }
+            )
+            ->select([
+                'po.production_line_id',
+                'p.product_family_id',
+                'po.product_id',
+                'po.status',
+            ])
+            ->selectRaw(
+                "NULLIF(LOWER(TRIM(COALESCE(s.name, ''))), '') as shift_key"
+            )
+            ->distinct()
+            ->limit(max(1, min($limit, 20000)))
+            ->get();
+
+        return $rows
+            ->map(
+                static fn (object $row): array => [
+                    'production_line_id' =>
+                        (int) $row->production_line_id,
+                    'product_family_id' =>
+                        (int) $row->product_family_id,
+                    'product_id' =>
+                        (int) $row->product_id,
+                    'shift_key' =>
+                        $row->shift_key === null
+                            ? null
+                            : (string) $row->shift_key,
+                    'status' => (string) $row->status,
+                ]
+            )
+            ->all();
+    }
+
+    private function applyOrderFilters(
+        Builder $query,
+        AnalyticsFilter $filter,
+        bool $includeOrderId = true
+    ): void {
+        if ($filter->status !== null) {
+            $query->where(
+                'po.status',
+                $filter->status
+            );
+        } else {
+            $query->whereIn(
+                'po.status',
+                [
+                    ProductionOrderStatus::Planned->value,
+                    ProductionOrderStatus::Released->value,
+                    ProductionOrderStatus::InProgress->value,
+                    ProductionOrderStatus::Completed->value,
+                ]
+            );
+        }
+
+        if ($filter->productionLineId !== null) {
+            $query->where(
+                'po.production_line_id',
+                $filter->productionLineId
+            );
+        }
+
+        if ($filter->productId !== null) {
+            $query->where(
+                'po.product_id',
+                $filter->productId
+            );
+        }
+
+        if ($filter->productFamilyId !== null) {
+            $query->where(
+                'p.product_family_id',
+                $filter->productFamilyId
+            );
+        }
+
+        if ($filter->shiftId !== null) {
+            $query->whereIn(
+                'po.shift_id',
+                $this->equivalentShiftIds(
+                    $filter->shiftId
+                )
+            );
+        }
+
+        if (
+            $includeOrderId
+            && $filter->productionOrderId !== null
+        ) {
+            $query->where(
+                'po.id',
+                $filter->productionOrderId
+            );
+        }
+    }
+
+    /**
+     * @return list<int>
+     */
+    private function equivalentShiftIds(
+        int $selectedShiftId
+    ): array {
+        $selected = DB::table('shifts')
+            ->where('id', $selectedShiftId)
+            ->first([
+                'id',
+                'name',
+                'starts_at',
+                'ends_at',
+            ]);
+
+        if ($selected === null) {
+            return [$selectedShiftId];
+        }
+
+        $name = strtolower(
+            trim((string) $selected->name)
+        );
+
+        if ($name === '') {
+            return [(int) $selected->id];
+        }
+
+        $ids = DB::table('shifts')
+            ->whereRaw(
+                'LOWER(TRIM(name)) = ?',
+                [$name]
+            )
+            ->where(
+                'starts_at',
+                $selected->starts_at
+            )
+            ->where(
+                'ends_at',
+                $selected->ends_at
+            )
+            ->pluck('id')
+            ->map(
+                static fn (mixed $id): int =>
+                    (int) $id
+            )
+            ->all();
+
+        return $ids === []
+            ? [(int) $selected->id]
+            : array_values(
+                array_unique($ids)
+            );
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function includedImportStatuses(): array
+    {
+        $statuses = config(
+            'analytics.included_import_statuses',
+            [
+                'not_applicable',
+                'imported',
+                'skipped',
+            ]
+        );
+
+        if (! is_array($statuses)) {
+            return [
+                'not_applicable',
+                'imported',
+                'skipped',
+            ];
+        }
+
+        return array_values(
+            array_filter(
+                $statuses,
+                static fn (mixed $status): bool =>
+                    is_string($status)
+                    && trim($status) !== ''
+            )
+        );
+    }
+}

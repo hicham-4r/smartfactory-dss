@@ -1,0 +1,302 @@
+{
+  "generated_from": "SMARTFACTORY_PHASE6_STEP21P_SOURCE_BUNDLE.txt",
+  "source_bundle_sha256": "1B64C24CC41FA6807F4EDA3C40E65AC2278BF304CB53AF49EC3C74067B139522",
+  "source_bundle_generated_at": "2026-08-03T21:52:49.0153180+01:00",
+  "application": {
+    "laravel_version": "Laravel Framework 12.64.0",
+    "laravel_tests_passed": 490,
+    "laravel_assertions": 2483,
+    "laravel_test_duration_seconds": 78.57,
+    "python_version": "3.12.10",
+    "fastapi_tests_passed_inferred_from_progress_dots": 179,
+    "fastapi_route_inventory_capture_note": "The source-bundle route inventory command had a PowerShell quoting error. Endpoint declarations are present in source and the Step 21P verifier performs a separate route-contract check without inline Python quoting."
+  },
+  "model_registry": {
+    "run_id": "f0147a01-3d1a-45d9-9cb8-c2686b531be0",
+    "source_feature_run_id": "79f65f1f-b672-493f-91f3-60a648ac10a0",
+    "source_preprocessed_run_id": "d3905235-15ff-474c-aece-5b4620a1b599",
+    "data_classification": "simulated_prototype",
+    "source_system": "simulated_sage",
+    "manifest_sha256": "91E716F89DEE12EEE7161E8BDE81ED0EEC7F54A43CBE4E4560DA89C850879FC4",
+    "content_fingerprint": "520524eeb7d7f88dc9e80b2e4e4e6ba62da20714f45b077dc2b58e9f16e8fd50",
+    "environment": {
+      "joblib_version": "1.5.3",
+      "numpy_version": "2.3.5",
+      "pandas_version": "2.2.3",
+      "python_version": "3.12.10",
+      "scikit_learn_version": "1.8.0"
+    },
+    "tasks": {
+      "production_forecasting": {
+        "selected_model": "random_forest_regressor",
+        "train_rows": 183,
+        "validation_rows": 36,
+        "test_rows": 42,
+        "artifact_sha256": "d7eda9eb7db60cb6e875f25e12c68347ac2bc9a4fcd2beae438c834a2657adbe",
+        "metrics_sha256": "8dd8e6a6faa77d87c0df5d4ba3d332a164a35ffd9da3e384a8582c9604fcdba5"
+      },
+      "production_anomaly": {
+        "selected_model": "isolation_forest",
+        "train_rows": 2259,
+        "validation_rows": 468,
+        "test_rows": 511,
+        "artifact_sha256": "76ab5088ec9fc63ea9edc204cba67d1e86567e4bf1d871cd64b77aad16a72db7",
+        "metrics_sha256": "7e97d443136119f8768f636654d72adf61bf4a570915f3e82ee1f19a17e9ca14"
+      },
+      "maintenance_risk": {
+        "selected_model": "random_forest_classifier+gradient_boosting_regressor",
+        "train_rows": 1218,
+        "validation_rows": 147,
+        "test_rows": 315,
+        "artifact_sha256": "1e5f884962659afad08fa0039b3e39522034c65927288945472bc66ad7efc328",
+        "metrics_sha256": "967f4db41eba1aec84873f8d534d13e3ad492fff856d0bbbbd784a510d5659c3"
+      }
+    }
+  },
+  "metrics": {
+    "production_forecasting": {
+      "candidate_validation_metrics": {
+        "dummy_mean_regressor": {
+          "mae": 36448.02504553735,
+          "mape_eligible_row_count": 36,
+          "mape_percentage": 26.828168649842432,
+          "r2": -0.00012617053561414515,
+          "rmse": 41134.74453335026,
+          "row_count": 36
+        },
+        "gradient_boosting_regressor": {
+          "mae": 5609.9801024917815,
+          "mape_eligible_row_count": 36,
+          "mape_percentage": 3.4760691241712114,
+          "r2": 0.9684855405821569,
+          "rmse": 7301.907710369692,
+          "row_count": 36
+        },
+        "linear_regression": {
+          "mae": 5616.739109510664,
+          "mape_eligible_row_count": 36,
+          "mape_percentage": 3.542281345445628,
+          "r2": 0.9718646455207931,
+          "rmse": 6899.340900630112,
+          "row_count": 36
+        },
+        "random_forest_regressor": {
+          "mae": 5424.357874418794,
+          "mape_eligible_row_count": 36,
+          "mape_percentage": 3.3825442400775243,
+          "r2": 0.9698966980931706,
+          "rmse": 7136.5526754821785,
+          "row_count": 36
+        }
+      },
+      "data_classification": "simulated_prototype",
+      "limitations": [
+        "Metrics are based only on simulated-prototype data.",
+        "The model is not an industrial production commitment.",
+        "The test split was not used for candidate selection."
+      ],
+      "metrics_contract": "smartfactory.ml.model-metrics",
+      "metrics_version": "v1",
+      "selected_model": "random_forest_regressor",
+      "selection_metric": "validation_mae",
+      "task": "production_forecasting",
+      "task_type": "regression",
+      "test_metrics": {
+        "mae": 13350.269997573541,
+        "mape_eligible_row_count": 42,
+        "mape_percentage": 26.049343537394375,
+        "r2": 0.574771197544607,
+        "rmse": 33378.470920337895,
+        "row_count": 42
+      }
+    },
+    "production_anomaly": {
+      "configured_contamination": 0.02,
+      "data_classification": "simulated_prototype",
+      "limitations": [
+        "No ground-truth anomaly labels are available in the feature contract.",
+        "Anomaly rates and score distributions are diagnostics, not accuracy metrics.",
+        "All observations originate from simulated-prototype data."
+      ],
+      "metrics_contract": "smartfactory.ml.model-metrics",
+      "metrics_version": "v1",
+      "selected_model": "isolation_forest",
+      "selection_metric": "train_score_quantile_threshold",
+      "task": "production_anomaly",
+      "task_type": "unsupervised_anomaly_detection",
+      "test_metrics": {
+        "anomaly_count": 20,
+        "anomaly_rate_percentage": 3.9138943248532287,
+        "row_count": 511,
+        "score_maximum": 0.07476846299631501,
+        "score_median": -0.07181697015409017,
+        "score_minimum": -0.10911343662013612,
+        "score_p95": -0.010119952941214705,
+        "score_p99": 0.013916735480153928,
+        "threshold": -2.146381488342397e-17
+      },
+      "train_metrics": {
+        "anomaly_count": 46,
+        "anomaly_rate_percentage": 2.036299247454626,
+        "row_count": 2259,
+        "score_maximum": 0.06673976362090206,
+        "score_median": -0.0764116076280178,
+        "score_minimum": -0.1125720229983595,
+        "score_p95": -0.02949953262983056,
+        "score_p99": 0.009932187257723329,
+        "threshold": 2.0694708967317066e-16
+      },
+      "validation_metrics": {
+        "anomaly_count": 9,
+        "anomaly_rate_percentage": 1.9230769230769231,
+        "row_count": 468,
+        "score_maximum": 0.024339053774753205,
+        "score_median": -0.07717544953500569,
+        "score_minimum": -0.11036265626748487,
+        "score_p95": -0.03266554986251576,
+        "score_p99": 0.011275725138684549,
+        "threshold": 2.0694708967317066e-16
+      }
+    },
+    "maintenance_risk": {
+      "data_classification": "simulated_prototype",
+      "downtime_regressor": {
+        "candidate_validation_metrics": {
+          "dummy_mean_regressor": {
+            "mae": 66.14895613417781,
+            "mape_eligible_row_count": 116,
+            "mape_percentage": 51.10942637511477,
+            "r2": -0.3411068612979311,
+            "rmse": 83.01625208785781,
+            "row_count": 147
+          },
+          "gradient_boosting_regressor": {
+            "mae": 62.481646236418044,
+            "mape_eligible_row_count": 116,
+            "mape_percentage": 48.76806817333925,
+            "r2": -0.2016556563615226,
+            "rmse": 78.5817050542701,
+            "row_count": 147
+          },
+          "linear_regression": {
+            "mae": 72.25208831725882,
+            "mape_eligible_row_count": 116,
+            "mape_percentage": 66.16118740705559,
+            "r2": -0.5559466517397309,
+            "rmse": 89.41878850049832,
+            "row_count": 147
+          },
+          "random_forest_regressor": {
+            "mae": 64.53079723036655,
+            "mape_eligible_row_count": 116,
+            "mape_percentage": 53.389224576859185,
+            "r2": -0.14682820978499467,
+            "rmse": 76.76806851720241,
+            "row_count": 147
+          }
+        },
+        "selected_model": "gradient_boosting_regressor",
+        "test_metrics": {
+          "mae": 75.07144708681555,
+          "mape_eligible_row_count": 122,
+          "mape_percentage": 50.91449687525621,
+          "r2": -0.35317848117345263,
+          "rmse": 86.71753018388235,
+          "row_count": 315
+        }
+      },
+      "failure_classifier": {
+        "candidate_validation_metrics": {
+          "dummy_prior_classifier": {
+            "accuracy": 0.7891156462585034,
+            "average_precision": 0.7891156462585034,
+            "balanced_accuracy": 0.5,
+            "brier_score": 0.2227668713145187,
+            "confusion_matrix": {
+              "false_negative": 0,
+              "false_positive": 31,
+              "true_negative": 0,
+              "true_positive": 116
+            },
+            "f1": 0.8821292775665399,
+            "negative_count": 31,
+            "positive_count": 116,
+            "precision": 0.7891156462585034,
+            "recall": 1.0,
+            "roc_auc": 0.5,
+            "row_count": 147
+          },
+          "logistic_regression": {
+            "accuracy": 0.5782312925170068,
+            "average_precision": 0.8431458898305033,
+            "balanced_accuracy": 0.5436596218020022,
+            "brier_score": 0.27603186192271495,
+            "confusion_matrix": {
+              "false_negative": 46,
+              "false_positive": 16,
+              "true_negative": 15,
+              "true_positive": 70
+            },
+            "f1": 0.693069306930693,
+            "negative_count": 31,
+            "positive_count": 116,
+            "precision": 0.813953488372093,
+            "recall": 0.603448275862069,
+            "roc_auc": 0.5311457174638488,
+            "row_count": 147
+          },
+          "random_forest_classifier": {
+            "accuracy": 0.564625850340136,
+            "average_precision": 0.865768404856631,
+            "balanced_accuracy": 0.4877641824249166,
+            "brier_score": 0.2448720209408221,
+            "confusion_matrix": {
+              "false_negative": 44,
+              "false_positive": 20,
+              "true_negative": 11,
+              "true_positive": 72
+            },
+            "f1": 0.6923076923076923,
+            "negative_count": 31,
+            "positive_count": 116,
+            "precision": 0.782608695652174,
+            "recall": 0.6206896551724138,
+            "roc_auc": 0.5592324805339266,
+            "row_count": 147
+          }
+        },
+        "selected_model": "random_forest_classifier",
+        "test_metrics": {
+          "accuracy": 0.4095238095238095,
+          "average_precision": 0.49926448796706446,
+          "balanced_accuracy": 0.49099634757495964,
+          "brier_score": 0.35868347526984884,
+          "confusion_matrix": {
+            "false_negative": 18,
+            "false_positive": 168,
+            "true_negative": 25,
+            "true_positive": 104
+          },
+          "f1": 0.5279187817258884,
+          "negative_count": 193,
+          "positive_count": 122,
+          "precision": 0.38235294117647056,
+          "recall": 0.8524590163934426,
+          "roc_auc": 0.5284124692092074,
+          "row_count": 315
+        }
+      },
+      "limitations": [
+        "Maintenance output is an AI-assisted prioritization prototype, not reliable predictive maintenance.",
+        "Metrics are based only on simulated-prototype data.",
+        "The test split was not used for candidate selection."
+      ],
+      "metrics_contract": "smartfactory.ml.model-metrics",
+      "metrics_version": "v1",
+      "selected_model": "random_forest_classifier+gradient_boosting_regressor",
+      "selection_metric": "validation_average_precision_and_mae",
+      "task": "maintenance_risk",
+      "task_type": "classification_and_regression"
+    }
+  }
+}

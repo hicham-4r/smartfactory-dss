@@ -1,0 +1,42 @@
+﻿SMARTFACTORY DSS - PHASE 7 FINAL RUNTIME ACCEPTANCE
+Generated: 2026-08-04T02:50:30.6636813+01:00
+Project: C:\Users\OMEN\Herd\smartfactory-dss
+
+Laravel: Laravel Framework 12.64.0
+Python: Python 3.12.10
+Configured Ollama model: llama3:8b
+FastAPI endpoint: POST /internal/v1/explanations/generate
+
+Laravel explanation route:
+POST       ai-insights/explanations ................ ai-insights.explanations.generate ÔÇ║ AI\AiInsightsController@generateExplanation
+
+                                                                                                                    Showing [1] routes
+
+Laravel AI report route:
+GET|HEAD       reports/ai/{token}/export/{format} ................... reports.ai.export ÔÇ║ Reports\AiInferenceReportController@export
+
+                                                                                                                    Showing [1] routes
+
+Verified:
+- Required Phase 7 documentation installed
+- Browser-to-Ollama and report-export-to-Ollama paths absent
+- Operator excluded from the explanation contract and workspace
+- Strict fact allowlists and role-aware prompts present
+- Hallucinated values, unsupported claims, and control instructions rejected
+- Repeated unsafe model output isolated without raw-output disclosure
+- Encrypted user/session-bound snapshots verified
+- Exact inference-to-report explanation binding verified
+- PDF, Excel, and CSV fact/narrative separation verified
+- Complete FastAPI regression suite passed
+- Complete Laravel regression suite passed
+
+Acceptance boundary:
+- Accepted as a secure guarded explanation layer for a simulated PFE prototype
+- All outputs remain simulated_prototype
+- Not accepted as industrial forecasting, autonomous anomaly control, or reliable predictive maintenance
+
+Excluded from evidence:
+- bearer tokens and secrets
+- prompts and raw model output
+- session contents
+- database or operational records

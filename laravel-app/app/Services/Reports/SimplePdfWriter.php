@@ -1,0 +1,1493 @@
+<?php
+
+namespace App\Services\Reports;
+
+use App\DTOs\Analytics\ProductionKpiUnitSummary;
+use App\DTOs\Analytics\ProductionMetricRow;
+use App\DTOs\Reports\ProductionReport;
+
+final class SimplePdfWriter
+{
+    private const PAGE_WIDTH = 842.0;
+    private const PAGE_HEIGHT = 595.0;
+    private const MARGIN_X = 36.0;
+    private const BODY_TOP = 510.0;
+    private const BODY_BOTTOM = 48.0;
+
+    private const NAVY = [0.055, 0.102, 0.180];
+    private const BLUE = [0.063, 0.306, 0.600];
+    private const CYAN = [0.020, 0.620, 0.690];
+    private const GREEN = [0.090, 0.620, 0.380];
+    private const RED = [0.820, 0.180, 0.220];
+    private const AMBER = [0.900, 0.560, 0.100];
+    private const INK = [0.095, 0.125, 0.165];
+    private const MUTED = [0.390, 0.440, 0.500];
+    private const BORDER = [0.820, 0.850, 0.890];
+    private const SURFACE = [0.965, 0.975, 0.988];
+    private const WHITE = [1.000, 1.000, 1.000];
+
+    /**
+     * Backward-compatible simple document writer used by unit tests and
+     * small native-PDF smoke checks.
+     *
+     * @param list<string> $lines
+     */
+    public function write(array $lines): string
+    {
+        $document = $this->newDocument(
+            title: 'Production report',
+            badge: 'SMARTFACTORY DSS'
+        );
+
+        $this->sectionTitle(
+            $document,
+            'Native PDF document'
+        );
+
+        if ($lines === []) {
+            $lines = ['No report data.'];
+        }
+
+        foreach ($lines as $line) {
+            $height = $this->paragraphHeight(
+                (string) $line,
+                720.0,
+                9.0,
+                12.0
+            ) + 16.0;
+
+            $this->ensureSpace($document, $height + 6.0);
+
+            $this->rect(
+                $document,
+                self::MARGIN_X,
+                $document['y'] - $height + 4.0,
+                770.0,
+                $height,
+                self::WHITE,
+                self::BORDER,
+                0.7
+            );
+
+            $this->paragraph(
+                $document,
+                (string) $line,
+                self::MARGIN_X + 12.0,
+                $document['y'] - 12.0,
+                746.0,
+                9.0,
+                12.0,
+                'F1',
+                self::INK
+            );
+
+            $document['y'] -= $height + 8.0;
+        }
+
+        return $this->compile(
+            $document['pages'],
+            $document['title'],
+            $document['badge']
+        );
+    }
+
+    public function writeReport(
+        ProductionReport $report
+    ): string {
+        $document = $this->newDocument(
+            title: $report->title,
+            badge: strtoupper($report->type->label())
+        );
+
+        $this->reportIntroduction(
+            $document,
+            $report
+        );
+
+        $this->filtersPanel(
+            $document,
+            $report
+        );
+
+        $this->summarySection(
+            $document,
+            $report
+        );
+
+        $this->breakdownSection(
+            $document,
+            $report
+        );
+
+        $this->dataBasisSection(
+            $document,
+            $report
+        );
+
+        return $this->compile(
+            $document['pages'],
+            $document['title'],
+            $document['badge']
+        );
+    }
+
+    /**
+     * @return array{
+     *     pages:list<list<string>>,
+     *     page:int,
+     *     y:float,
+     *     title:string,
+     *     badge:string
+     * }
+     */
+    private function newDocument(
+        string $title,
+        string $badge
+    ): array {
+        return [
+            'pages' => [[]],
+            'page' => 0,
+            'y' => self::BODY_TOP,
+            'title' => $title,
+            'badge' => $badge,
+        ];
+    }
+
+    /** @param array<string, mixed> $document */
+    private function reportIntroduction(
+        array &$document,
+        ProductionReport $report
+    ): void {
+        $titleLines = $this->wrapText(
+            $report->title,
+            500.0,
+            20.0
+        );
+
+        foreach ($titleLines as $index => $line) {
+            $this->text(
+                $document,
+                self::MARGIN_X,
+                $document['y'] - ($index * 23.0),
+                $line,
+                20.0,
+                'F2',
+                self::NAVY
+            );
+        }
+
+        $document['y'] -= max(
+            28.0,
+            count($titleLines) * 23.0
+        );
+
+        $this->text(
+            $document,
+            self::MARGIN_X,
+            $document['y'],
+            'Deterministic production performance report',
+            9.5,
+            'F1',
+            self::MUTED
+        );
+
+        $document['y'] -= 26.0;
+
+        $generatedAt = $report->generatedAt
+            ->setTimezone($report->filter->timezone)
+            ->format('Y-m-d H:i:s T');
+
+        $cards = [
+            ['REPORT TYPE', $report->type->label(), self::BLUE],
+            ['GENERATED AT', $generatedAt, self::CYAN],
+            ['GENERATED BY', $report->generatedByName, self::GREEN],
+        ];
+
+        $cardWidth = 248.0;
+        $cardHeight = 54.0;
+
+        foreach ($cards as $index => [$label, $value, $accent]) {
+            $x = self::MARGIN_X + ($index * 261.0);
+
+            $this->rect(
+                $document,
+                $x,
+                $document['y'] - $cardHeight,
+                $cardWidth,
+                $cardHeight,
+                self::WHITE,
+                self::BORDER,
+                0.7
+            );
+
+            $this->rect(
+                $document,
+                $x,
+                $document['y'] - $cardHeight,
+                5.0,
+                $cardHeight,
+                $accent,
+                null
+            );
+
+            $this->text(
+                $document,
+                $x + 14.0,
+                $document['y'] - 17.0,
+                $label,
+                6.8,
+                'F2',
+                self::MUTED
+            );
+
+            $valueLines = $this->wrapText(
+                (string) $value,
+                $cardWidth - 27.0,
+                10.0
+            );
+
+            foreach (array_slice($valueLines, 0, 2) as $lineIndex => $line) {
+                $this->text(
+                    $document,
+                    $x + 14.0,
+                    $document['y'] - 34.0 - ($lineIndex * 11.0),
+                    $line,
+                    10.0,
+                    'F2',
+                    self::INK
+                );
+            }
+        }
+
+        $document['y'] -= $cardHeight + 20.0;
+
+        $this->text(
+            $document,
+            self::MARGIN_X,
+            $document['y'],
+            'Account: '.$report->generatedByEmail,
+            7.5,
+            'F1',
+            self::MUTED
+        );
+
+        $document['y'] -= 18.0;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function filtersPanel(
+        array &$document,
+        ProductionReport $report
+    ): void {
+        $this->sectionTitle(
+            $document,
+            'Applied filters'
+        );
+
+        if ($report->appliedFilters === []) {
+            $this->infoPanel(
+                $document,
+                'No additional filters were applied.',
+                self::SURFACE,
+                self::BLUE
+            );
+
+            return;
+        }
+
+        $items = [];
+
+        foreach ($report->appliedFilters as $label => $value) {
+            $items[] = [
+                (string) $label,
+                (string) $value,
+            ];
+        }
+
+        $rows = array_chunk($items, 2);
+
+        foreach ($rows as $row) {
+            $this->ensureSpace($document, 42.0);
+
+            foreach ($row as $column => [$label, $value]) {
+                $x = self::MARGIN_X + ($column * 390.0);
+                $width = 376.0;
+
+                $this->rect(
+                    $document,
+                    $x,
+                    $document['y'] - 34.0,
+                    $width,
+                    34.0,
+                    self::SURFACE,
+                    self::BORDER,
+                    0.6
+                );
+
+                $this->text(
+                    $document,
+                    $x + 10.0,
+                    $document['y'] - 12.0,
+                    strtoupper($label),
+                    6.4,
+                    'F2',
+                    self::MUTED
+                );
+
+                $valueLines = $this->wrapText(
+                    $value,
+                    $width - 20.0,
+                    8.5
+                );
+
+                $this->text(
+                    $document,
+                    $x + 10.0,
+                    $document['y'] - 26.0,
+                    $valueLines[0] ?? '-',
+                    8.5,
+                    'F2',
+                    self::INK
+                );
+            }
+
+            $document['y'] -= 42.0;
+        }
+
+        $document['y'] -= 4.0;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function summarySection(
+        array &$document,
+        ProductionReport $report
+    ): void {
+        $this->sectionTitle(
+            $document,
+            'Production KPI summary'
+        );
+
+        if ($report->summary->units === []) {
+            $this->emptyState(
+                $document,
+                'No matching production KPI data was found for the selected period.'
+            );
+
+            return;
+        }
+
+        foreach ($report->summary->units as $unit) {
+            $this->summaryUnitCard(
+                $document,
+                $unit
+            );
+        }
+    }
+
+    /** @param array<string, mixed> $document */
+    private function summaryUnitCard(
+        array &$document,
+        ProductionKpiUnitSummary $unit
+    ): void {
+        $height = 112.0;
+        $this->ensureSpace($document, $height + 10.0);
+
+        $top = $document['y'];
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $top - $height,
+            770.0,
+            $height,
+            self::WHITE,
+            self::BORDER,
+            0.8
+        );
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $top - 28.0,
+            770.0,
+            28.0,
+            self::NAVY,
+            null
+        );
+
+        $this->text(
+            $document,
+            self::MARGIN_X + 12.0,
+            $top - 19.0,
+            'Quantity unit: '.$unit->quantityUnit,
+            10.5,
+            'F2',
+            self::WHITE
+        );
+
+        $statusText = $unit->isProvisional()
+            ? 'PROVISIONAL'
+            : 'VALIDATED';
+
+        $statusColor = $unit->isProvisional()
+            ? self::AMBER
+            : self::GREEN;
+
+        $this->rect(
+            $document,
+            704.0,
+            $top - 22.0,
+            90.0,
+            15.0,
+            $statusColor,
+            null
+        );
+
+        $this->text(
+            $document,
+            717.0,
+            $top - 18.0,
+            $statusText,
+            6.5,
+            'F2',
+            self::WHITE
+        );
+
+        $metrics = [
+            ['Target', $this->quantity($unit->targetQuantity)],
+            ['Actual', $this->quantity($unit->actualQuantity)],
+            ['Good', $this->quantity($unit->goodQuantity)],
+            ['Rejected', $this->quantity($unit->rejectedQuantity)],
+            ['Achievement', $this->percentage($unit->achievementPercentage)],
+            ['Rejection', $this->percentage($unit->rejectionPercentage)],
+        ];
+
+        foreach ($metrics as $index => [$label, $value]) {
+            $x = self::MARGIN_X + 12.0 + (($index % 6) * 124.0);
+
+            $this->text(
+                $document,
+                $x,
+                $top - 49.0,
+                strtoupper($label),
+                6.2,
+                'F2',
+                self::MUTED
+            );
+
+            $this->text(
+                $document,
+                $x,
+                $top - 66.0,
+                $value,
+                10.0,
+                'F2',
+                $label === 'Rejected'
+                    ? self::RED
+                    : self::INK
+            );
+        }
+
+        $achievement = max(
+            0.0,
+            min(100.0, (float) ($unit->achievementPercentage ?? 0.0))
+        );
+
+        $barX = self::MARGIN_X + 12.0;
+        $barY = $top - 92.0;
+        $barWidth = 520.0;
+
+        $this->rect(
+            $document,
+            $barX,
+            $barY,
+            $barWidth,
+            8.0,
+            [0.900, 0.920, 0.945],
+            null
+        );
+
+        if ($achievement > 0.0) {
+            $this->rect(
+                $document,
+                $barX,
+                $barY,
+                $barWidth * ($achievement / 100.0),
+                8.0,
+                $achievement >= 90.0
+                    ? self::GREEN
+                    : self::BLUE,
+                null
+            );
+        }
+
+        $this->text(
+            $document,
+            580.0,
+            $top - 94.0,
+            'Records '.$unit->recordCount
+                .'  |  Runtime '.$unit->runtimeMinutes.' min'
+                .'  |  Downtime '.$unit->downtimeMinutes.' min',
+            7.2,
+            'F1',
+            self::MUTED
+        );
+
+        $document['y'] -= $height + 12.0;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function breakdownSection(
+        array &$document,
+        ProductionReport $report
+    ): void {
+        $this->sectionTitle(
+            $document,
+            'Primary breakdown - '.$report->primaryDimensionLabel()
+        );
+
+        $rows = $report->primaryRows();
+
+        if ($rows === []) {
+            $this->emptyState(
+                $document,
+                'No matching breakdown data was found for the selected period.'
+            );
+
+            return;
+        }
+
+        $columns = [
+            ['label' => $report->primaryDimensionLabel(), 'width' => 126.0, 'align' => 'left'],
+            ['label' => 'Unit', 'width' => 42.0, 'align' => 'left'],
+            ['label' => 'Target', 'width' => 70.0, 'align' => 'right'],
+            ['label' => 'Actual', 'width' => 70.0, 'align' => 'right'],
+            ['label' => 'Good', 'width' => 70.0, 'align' => 'right'],
+            ['label' => 'Rejected', 'width' => 70.0, 'align' => 'right'],
+            ['label' => 'Ach. %', 'width' => 55.0, 'align' => 'right'],
+            ['label' => 'Rej. %', 'width' => 52.0, 'align' => 'right'],
+            ['label' => 'Runtime', 'width' => 57.0, 'align' => 'right'],
+            ['label' => 'Downtime', 'width' => 58.0, 'align' => 'right'],
+        ];
+
+        $tableRows = array_map(
+            fn (ProductionMetricRow $row): array => [
+                $row->label,
+                $row->quantityUnit,
+                $this->quantity($row->targetQuantity),
+                $this->quantity($row->actualQuantity),
+                $this->quantity($row->goodQuantity),
+                $this->quantity($row->rejectedQuantity),
+                $this->percentage($row->achievementPercentage, false),
+                $this->percentage($row->rejectionPercentage, false),
+                (string) $row->runtimeMinutes,
+                (string) $row->downtimeMinutes,
+            ],
+            $rows
+        );
+
+        $this->table(
+            $document,
+            $columns,
+            $tableRows
+        );
+    }
+
+    /** @param array<string, mixed> $document */
+    private function dataBasisSection(
+        array &$document,
+        ProductionReport $report
+    ): void {
+        $this->sectionTitle(
+            $document,
+            'Data basis and interpretation'
+        );
+
+        $this->infoPanel(
+            $document,
+            $report->dataBasisLabel(),
+            [0.945, 0.965, 0.990],
+            self::BLUE
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     * @param list<array{label:string,width:float,align:string}> $columns
+     * @param list<list<string>> $rows
+     */
+    private function table(
+        array &$document,
+        array $columns,
+        array $rows
+    ): void {
+        $headerHeight = 25.0;
+        $rowHeight = 22.0;
+
+        $this->ensureSpace(
+            $document,
+            $headerHeight + $rowHeight
+        );
+
+        $this->tableHeader(
+            $document,
+            $columns,
+            $headerHeight
+        );
+
+        foreach ($rows as $index => $row) {
+            if (
+                $document['y'] - $rowHeight
+                < self::BODY_BOTTOM
+            ) {
+                $this->newPage($document);
+                $this->tableHeader(
+                    $document,
+                    $columns,
+                    $headerHeight
+                );
+            }
+
+            $background = $index % 2 === 0
+                ? self::WHITE
+                : self::SURFACE;
+
+            $this->rect(
+                $document,
+                self::MARGIN_X,
+                $document['y'] - $rowHeight,
+                770.0,
+                $rowHeight,
+                $background,
+                self::BORDER,
+                0.35
+            );
+
+            $x = self::MARGIN_X;
+
+            foreach ($columns as $columnIndex => $column) {
+                $value = (string) ($row[$columnIndex] ?? '');
+                $fontSize = 6.8;
+                $padding = 5.0;
+                $available = $column['width'] - ($padding * 2);
+                $display = $this->truncateText(
+                    $value,
+                    $available,
+                    $fontSize
+                );
+
+                $textX = $x + $padding;
+
+                if ($column['align'] === 'right') {
+                    $textWidth = $this->approximateTextWidth(
+                        $display,
+                        $fontSize
+                    );
+
+                    $textX = $x
+                        + $column['width']
+                        - $padding
+                        - $textWidth;
+                }
+
+                $color = $columnIndex === 5
+                    && (float) $value > 0
+                        ? self::RED
+                        : self::INK;
+
+                $this->text(
+                    $document,
+                    $textX,
+                    $document['y'] - 14.0,
+                    $display,
+                    $fontSize,
+                    $columnIndex === 0 ? 'F2' : 'F1',
+                    $color
+                );
+
+                $x += $column['width'];
+            }
+
+            $document['y'] -= $rowHeight;
+        }
+
+        $document['y'] -= 12.0;
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     * @param list<array{label:string,width:float,align:string}> $columns
+     */
+    private function tableHeader(
+        array &$document,
+        array $columns,
+        float $height
+    ): void {
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $document['y'] - $height,
+            770.0,
+            $height,
+            self::NAVY,
+            null
+        );
+
+        $x = self::MARGIN_X;
+
+        foreach ($columns as $column) {
+            $label = $this->truncateText(
+                $column['label'],
+                $column['width'] - 10.0,
+                6.5
+            );
+
+            $textX = $x + 5.0;
+
+            if ($column['align'] === 'right') {
+                $textX = $x
+                    + $column['width']
+                    - 5.0
+                    - $this->approximateTextWidth(
+                        $label,
+                        6.5
+                    );
+            }
+
+            $this->text(
+                $document,
+                $textX,
+                $document['y'] - 16.0,
+                strtoupper($label),
+                6.5,
+                'F2',
+                self::WHITE
+            );
+
+            $x += $column['width'];
+        }
+
+        $document['y'] -= $height;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function sectionTitle(
+        array &$document,
+        string $title
+    ): void {
+        $this->ensureSpace($document, 34.0);
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $document['y'] - 24.0,
+            770.0,
+            24.0,
+            [0.925, 0.950, 0.985],
+            null
+        );
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $document['y'] - 24.0,
+            5.0,
+            24.0,
+            self::BLUE,
+            null
+        );
+
+        $this->text(
+            $document,
+            self::MARGIN_X + 13.0,
+            $document['y'] - 16.0,
+            $title,
+            10.5,
+            'F2',
+            self::NAVY
+        );
+
+        $document['y'] -= 34.0;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function emptyState(
+        array &$document,
+        string $message
+    ): void {
+        $this->infoPanel(
+            $document,
+            $message,
+            [0.985, 0.970, 0.925],
+            self::AMBER
+        );
+    }
+
+    /** @param array<string, mixed> $document */
+    private function infoPanel(
+        array &$document,
+        string $message,
+        array $background,
+        array $accent
+    ): void {
+        $height = $this->paragraphHeight(
+            $message,
+            730.0,
+            8.0,
+            11.0
+        ) + 24.0;
+
+        $this->ensureSpace(
+            $document,
+            $height + 8.0
+        );
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $document['y'] - $height,
+            770.0,
+            $height,
+            $background,
+            self::BORDER,
+            0.5
+        );
+
+        $this->rect(
+            $document,
+            self::MARGIN_X,
+            $document['y'] - $height,
+            5.0,
+            $height,
+            $accent,
+            null
+        );
+
+        $this->paragraph(
+            $document,
+            $message,
+            self::MARGIN_X + 14.0,
+            $document['y'] - 16.0,
+            738.0,
+            8.0,
+            11.0,
+            'F1',
+            self::INK
+        );
+
+        $document['y'] -= $height + 10.0;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function ensureSpace(
+        array &$document,
+        float $height
+    ): void {
+        if (
+            $document['y'] - $height
+            < self::BODY_BOTTOM
+        ) {
+            $this->newPage($document);
+        }
+    }
+
+    /** @param array<string, mixed> $document */
+    private function newPage(
+        array &$document
+    ): void {
+        $document['pages'][] = [];
+        $document['page'] = count($document['pages']) - 1;
+        $document['y'] = self::BODY_TOP;
+    }
+
+    /** @param array<string, mixed> $document */
+    private function text(
+        array &$document,
+        float $x,
+        float $y,
+        string $text,
+        float $size,
+        string $font,
+        array $color
+    ): void {
+        $document['pages'][$document['page']][] = implode(
+            ' ',
+            [
+                'BT',
+                '/'.$font,
+                $this->number($size),
+                'Tf',
+                $this->color($color),
+                'rg',
+                $this->number($x),
+                $this->number($y),
+                'Td',
+                '('.$this->escapePdfText(
+                    $this->latinText($text)
+                ).')',
+                'Tj',
+                'ET',
+            ]
+        );
+    }
+
+    /** @param array<string, mixed> $document */
+    private function rect(
+        array &$document,
+        float $x,
+        float $y,
+        float $width,
+        float $height,
+        ?array $fill,
+        ?array $stroke,
+        float $lineWidth = 0.5
+    ): void {
+        $commands = ['q'];
+
+        if ($fill !== null) {
+            $commands[] = $this->color($fill).' rg';
+        }
+
+        if ($stroke !== null) {
+            $commands[] = $this->color($stroke).' RG';
+            $commands[] = $this->number($lineWidth).' w';
+        }
+
+        $commands[] = implode(
+            ' ',
+            [
+                $this->number($x),
+                $this->number($y),
+                $this->number($width),
+                $this->number($height),
+                're',
+                $fill !== null && $stroke !== null
+                    ? 'B'
+                    : ($fill !== null ? 'f' : 'S'),
+            ]
+        );
+
+        $commands[] = 'Q';
+
+        $document['pages'][$document['page']][] = implode(
+            "\n",
+            $commands
+        );
+    }
+
+    /** @param array<string, mixed> $document */
+    private function line(
+        array &$document,
+        float $x1,
+        float $y1,
+        float $x2,
+        float $y2,
+        array $color,
+        float $width = 0.5
+    ): void {
+        $document['pages'][$document['page']][] = implode(
+            ' ',
+            [
+                'q',
+                $this->color($color),
+                'RG',
+                $this->number($width),
+                'w',
+                $this->number($x1),
+                $this->number($y1),
+                'm',
+                $this->number($x2),
+                $this->number($y2),
+                'l',
+                'S',
+                'Q',
+            ]
+        );
+    }
+
+    /** @param array<string, mixed> $document */
+    private function paragraph(
+        array &$document,
+        string $text,
+        float $x,
+        float $y,
+        float $width,
+        float $fontSize,
+        float $leading,
+        string $font,
+        array $color
+    ): float {
+        $lines = $this->wrapText(
+            $text,
+            $width,
+            $fontSize
+        );
+
+        foreach ($lines as $index => $line) {
+            $this->text(
+                $document,
+                $x,
+                $y - ($index * $leading),
+                $line,
+                $fontSize,
+                $font,
+                $color
+            );
+        }
+
+        return max(
+            $leading,
+            count($lines) * $leading
+        );
+    }
+
+    private function paragraphHeight(
+        string $text,
+        float $width,
+        float $fontSize,
+        float $leading
+    ): float {
+        return max(
+            $leading,
+            count(
+                $this->wrapText(
+                    $text,
+                    $width,
+                    $fontSize
+                )
+            ) * $leading
+        );
+    }
+
+    /** @return list<string> */
+    private function wrapText(
+        string $text,
+        float $width,
+        float $fontSize
+    ): array {
+        $text = trim(
+            preg_replace('/\s+/', ' ', $text) ?? $text
+        );
+
+        if ($text === '') {
+            return [''];
+        }
+
+        $maximumCharacters = max(
+            5,
+            (int) floor(
+                $width / max(1.0, $fontSize * 0.52)
+            )
+        );
+
+        $wrapped = wordwrap(
+            $text,
+            $maximumCharacters,
+            "\n",
+            true
+        );
+
+        return explode("\n", $wrapped);
+    }
+
+    private function truncateText(
+        string $text,
+        float $width,
+        float $fontSize
+    ): string {
+        $text = trim(
+            preg_replace('/\s+/', ' ', $text) ?? $text
+        );
+
+        if (
+            $this->approximateTextWidth(
+                $text,
+                $fontSize
+            ) <= $width
+        ) {
+            return $text;
+        }
+
+        $maximumCharacters = max(
+            2,
+            (int) floor(
+                $width / max(1.0, $fontSize * 0.52)
+            ) - 1
+        );
+
+        return $this->substring(
+            $text,
+            0,
+            $maximumCharacters
+        ).'...';
+    }
+
+    private function approximateTextWidth(
+        string $text,
+        float $fontSize
+    ): float {
+        return $this->stringLength($text)
+            * $fontSize
+            * 0.52;
+    }
+
+
+    private function stringLength(string $value): int
+    {
+        if (function_exists('mb_strlen')) {
+            return \mb_strlen($value, 'UTF-8');
+        }
+
+        return strlen($value);
+    }
+
+    private function substring(
+        string $value,
+        int $start,
+        int $length
+    ): string {
+        if (function_exists('mb_substr')) {
+            return \mb_substr(
+                $value,
+                $start,
+                $length,
+                'UTF-8'
+            );
+        }
+
+        return substr(
+            $value,
+            $start,
+            $length
+        );
+    }
+
+    private function quantity(
+        string|int|float|null $value
+    ): string {
+        return number_format(
+            (float) ($value ?? 0),
+            3,
+            '.',
+            ','
+        );
+    }
+
+    private function percentage(
+        ?float $value,
+        bool $suffix = true
+    ): string {
+        if ($value === null) {
+            return 'N/A';
+        }
+
+        return number_format(
+            $value,
+            1,
+            '.',
+            ''
+        ).($suffix ? '%' : '');
+    }
+
+    /**
+     * @param list<list<string>> $pages
+     */
+    private function compile(
+        array $pages,
+        string $title,
+        string $badge
+    ): string {
+        $pageCount = count($pages);
+        $fontRegularObject = 3 + ($pageCount * 2);
+        $fontBoldObject = $fontRegularObject + 1;
+        $fontItalicObject = $fontBoldObject + 1;
+        $objects = [];
+
+        $objects[1] =
+            '<< /Type /Catalog /Pages 2 0 R >>';
+
+        $kids = [];
+
+        foreach ($pages as $index => $pageCommands) {
+            $pageObject = 3 + ($index * 2);
+            $contentObject = $pageObject + 1;
+            $kids[] = $pageObject.' 0 R';
+
+            $content = $this->pageContent(
+                $pageCommands,
+                $index + 1,
+                $pageCount,
+                $title,
+                $badge
+            );
+
+            $objects[$pageObject] =
+                '<< /Type /Page '
+                .'/Parent 2 0 R '
+                .'/MediaBox [0 0 842 595] '
+                .'/Resources << /Font << '
+                .'/F1 '.$fontRegularObject.' 0 R '
+                .'/F2 '.$fontBoldObject.' 0 R '
+                .'/F3 '.$fontItalicObject.' 0 R '
+                .'>> >> '
+                .'/Contents '.$contentObject.' 0 R >>';
+
+            $objects[$contentObject] =
+                '<< /Length '.strlen($content).' >>'
+                ."\nstream\n"
+                .$content
+                ."\nendstream";
+        }
+
+        $objects[2] =
+            '<< /Type /Pages /Count '
+            .$pageCount
+            .' /Kids ['
+            .implode(' ', $kids)
+            .'] >>';
+
+        $objects[$fontRegularObject] =
+            '<< /Type /Font /Subtype /Type1 '
+            .'/BaseFont /Helvetica '
+            .'/Encoding /WinAnsiEncoding >>';
+
+        $objects[$fontBoldObject] =
+            '<< /Type /Font /Subtype /Type1 '
+            .'/BaseFont /Helvetica-Bold '
+            .'/Encoding /WinAnsiEncoding >>';
+
+        $objects[$fontItalicObject] =
+            '<< /Type /Font /Subtype /Type1 '
+            .'/BaseFont /Helvetica-Oblique '
+            .'/Encoding /WinAnsiEncoding >>';
+
+        ksort($objects);
+
+        $pdf = "%PDF-1.4\n%\xE2\xE3\xCF\xD3\n";
+        $offsets = [0 => 0];
+
+        foreach ($objects as $number => $object) {
+            $offsets[$number] = strlen($pdf);
+            $pdf .= $number
+                ." 0 obj\n"
+                .$object
+                ."\nendobj\n";
+        }
+
+        $xrefOffset = strlen($pdf);
+        $objectCount = max(array_keys($objects)) + 1;
+
+        $pdf .= "xref\n0 {$objectCount}\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        for ($number = 1; $number < $objectCount; $number++) {
+            $pdf .= sprintf(
+                "%010d 00000 n \n",
+                $offsets[$number]
+            );
+        }
+
+        $pdf .= 'trailer'
+            ."\n<< /Size {$objectCount} /Root 1 0 R >>"
+            ."\nstartxref\n"
+            .$xrefOffset
+            ."\n%%EOF";
+
+        return $pdf;
+    }
+
+    /**
+     * @param list<string> $bodyCommands
+     */
+    private function pageContent(
+        array $bodyCommands,
+        int $pageNumber,
+        int $pageCount,
+        string $title,
+        string $badge
+    ): string {
+        $commands = [];
+
+        $commands[] = 'q '
+            .$this->color(self::NAVY)
+            .' rg 0 533 842 62 re f Q';
+
+        $commands[] = 'q '
+            .$this->color(self::CYAN)
+            .' rg 0 533 7 62 re f Q';
+
+        $commands[] = $this->textCommand(
+            36.0,
+            570.0,
+            'SMARTFACTORY DSS',
+            15.0,
+            'F2',
+            self::WHITE
+        );
+
+        $commands[] = $this->textCommand(
+            36.0,
+            550.0,
+            $this->truncateText(
+                $title,
+                540.0,
+                8.2
+            ),
+            8.2,
+            'F1',
+            [0.760, 0.830, 0.920]
+        );
+
+        $badgeWidth = max(
+            110.0,
+            min(
+                205.0,
+                $this->approximateTextWidth(
+                    $badge,
+                    7.0
+                ) + 28.0
+            )
+        );
+
+        $commands[] = 'q '
+            .$this->color(self::BLUE)
+            .' rg '
+            .$this->number(806.0 - $badgeWidth)
+            .' 552 '
+            .$this->number($badgeWidth)
+            .' 22 re f Q';
+
+        $commands[] = $this->textCommand(
+            820.0 - $badgeWidth,
+            560.0,
+            $this->truncateText(
+                $badge,
+                $badgeWidth - 20.0,
+                7.0
+            ),
+            7.0,
+            'F2',
+            self::WHITE
+        );
+
+        $commands = [
+            ...$commands,
+            ...$bodyCommands,
+        ];
+
+        $commands[] = 'q '
+            .$this->color(self::BORDER)
+            .' RG 0.5 w 36 31 m 806 31 l S Q';
+
+        $commands[] = $this->textCommand(
+            36.0,
+            17.0,
+            'SmartFactory DSS - Simulated ERP / DSS prototype data',
+            6.8,
+            'F1',
+            self::MUTED
+        );
+
+        $pageText = 'Page '.$pageNumber.' of '.$pageCount;
+
+        $commands[] = $this->textCommand(
+            806.0 - $this->approximateTextWidth(
+                $pageText,
+                6.8
+            ),
+            17.0,
+            $pageText,
+            6.8,
+            'F2',
+            self::MUTED
+        );
+
+        return implode("\n", $commands);
+    }
+
+    private function textCommand(
+        float $x,
+        float $y,
+        string $text,
+        float $size,
+        string $font,
+        array $color
+    ): string {
+        return implode(
+            ' ',
+            [
+                'BT',
+                '/'.$font,
+                $this->number($size),
+                'Tf',
+                $this->color($color),
+                'rg',
+                $this->number($x),
+                $this->number($y),
+                'Td',
+                '('.$this->escapePdfText(
+                    $this->latinText($text)
+                ).')',
+                'Tj',
+                'ET',
+            ]
+        );
+    }
+
+    private function color(array $color): string
+    {
+        return implode(
+            ' ',
+            array_map(
+                fn (float|int $component): string =>
+                    $this->number((float) $component),
+                $color
+            )
+        );
+    }
+
+    private function number(float $value): string
+    {
+        $formatted = number_format(
+            $value,
+            3,
+            '.',
+            ''
+        );
+
+        return rtrim(
+            rtrim($formatted, '0'),
+            '.'
+        );
+    }
+
+    private function latinText(string $value): string
+    {
+        if (function_exists('iconv')) {
+            $converted = iconv(
+                'UTF-8',
+                'Windows-1252//TRANSLIT//IGNORE',
+                $value
+            );
+
+            if ($converted !== false) {
+                return $converted;
+            }
+        }
+
+        return preg_replace(
+            '/[^\x20-\x7E]/',
+            '?',
+            $value
+        ) ?? $value;
+    }
+
+    private function escapePdfText(string $value): string
+    {
+        return str_replace(
+            ['\\', '(', ')', "\r", "\n"],
+            ['\\\\', '\\(', '\\)', ' ', ' '],
+            $value
+        );
+    }
+}
