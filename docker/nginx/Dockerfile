@@ -19,13 +19,13 @@ FROM ${NGINX_IMAGE} AS application
 
 COPY docker/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY docker/nginx/conf.d/smartfactory.conf /etc/nginx/conf.d/default.conf
+COPY --chmod=0755 docker/nginx/99-smartfactory-validate.sh /docker-entrypoint.d/99-smartfactory-validate.sh
 
 COPY laravel-app/public /srv/smartfactory/public
 COPY --from=laravel_frontend /build/public/build /srv/smartfactory/public/build
 COPY sage-erp-simulator/public /srv/simulator/public
 
-RUN chown -R nginx:nginx /srv/smartfactory /srv/simulator \
-    && nginx -t
+RUN chown -R nginx:nginx /srv/smartfactory /srv/simulator
 
 EXPOSE 8080 8082
 
