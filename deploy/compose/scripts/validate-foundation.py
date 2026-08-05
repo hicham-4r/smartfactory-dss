@@ -190,6 +190,45 @@ def main() -> int:
             + ", ".join(missing_placeholders)
         )
 
+    laravel_example = (
+        PROJECT_ROOT
+        / "deploy/compose/env/laravel/.env.example"
+    )
+    laravel_values = {}
+    for raw_line in laravel_example.read_text(
+        encoding="utf-8"
+    ).splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        key, separator, value = line.partition("=")
+        if separator:
+            laravel_values[key.strip()] = value.strip().strip('"')
+
+    try:
+        erp_page_size = int(
+            laravel_values["ERP_PAGE_SIZE"]
+        )
+        erp_maximum_page_size = int(
+            laravel_values["ERP_MAXIMUM_PAGE_SIZE"]
+        )
+    except (KeyError, ValueError) as exception:
+        fail(
+            "Laravel Compose ERP page-size settings must be "
+            f"present integers: {exception}"
+        )
+
+    if not (
+        1
+        <= erp_page_size
+        <= erp_maximum_page_size
+        <= 100
+    ):
+        fail(
+            "Laravel Compose ERP page-size settings must satisfy "
+            "1 <= ERP_PAGE_SIZE <= ERP_MAXIMUM_PAGE_SIZE <= 100."
+        )
+
     report = {
         "passed": True,
         "compose_file": str(COMPOSE),
