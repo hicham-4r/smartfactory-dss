@@ -2,6 +2,45 @@
 
 @section('title', 'Report Production Event')
 
+@php
+    $allowedEventValues = $eventTypes
+        ->map(
+            static fn (
+                \App\Enums\Production\ProductionEventType $type
+            ): string => $type->value
+        )
+        ->all();
+
+    $requestedEventType = request()->query(
+        'event_type'
+    );
+
+    $selectedEventType = old(
+        'event_type',
+        is_string($requestedEventType)
+        && in_array(
+            $requestedEventType,
+            $allowedEventValues,
+            true
+        )
+            ? $requestedEventType
+            : $eventTypes->first()?->value
+    );
+
+    $defaultTitle = match ($selectedEventType) {
+        \App\Enums\Production\ProductionEventType::MachineIncident->value =>
+            'Machine not working',
+
+        \App\Enums\Production\ProductionEventType::Downtime->value =>
+            'Production downtime',
+
+        \App\Enums\Production\ProductionEventType::Comment->value =>
+            'Operator comment',
+
+        default => '',
+    };
+@endphp
+
 @section('content')
 <div class="container py-4">
     @include(
@@ -45,6 +84,14 @@
         @csrf
 
         <div class="card-body">
+            <div class="alert alert-info" role="note">
+                <strong>Assigned work only.</strong>
+                This report will be attached to batch
+                {{ $productionBatch->batch_number }} and its production line.
+                Machine choices are limited to that line. Operators can report
+                events but cannot resolve or close them.
+            </div>
+
             <div class="row g-3">
                 <div class="col-md-6">
                     <label
@@ -107,7 +154,7 @@
                             <option
                                 value="{{ $type->value }}"
                                 @selected(
-                                    old('event_type')
+                                    $selectedEventType
                                     === $type->value
                                 )
                             >
@@ -231,7 +278,7 @@
                         type="text"
                         maxlength="180"
                         class="form-control"
-                        value="{{ old('title') }}"
+                        value="{{ old('title', $defaultTitle) }}"
                         required
                     >
                 </div>
@@ -249,7 +296,12 @@
                         name="started_at"
                         type="datetime-local"
                         class="form-control"
-                        value="{{ old('started_at') }}"
+                        value="{{
+                            old(
+                                'started_at',
+                                now()->format('Y-m-d\TH:i')
+                            )
+                        }}"
                         required
                     >
                 </div>

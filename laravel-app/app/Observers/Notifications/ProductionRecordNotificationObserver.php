@@ -7,10 +7,13 @@ use App\Enums\PermissionName;
 use App\Enums\Production\ProductionRecordStatus;
 use App\Enums\Production\ProductionValidationStatus;
 use App\Models\ProductionRecord;
+use App\Models\User;
 use App\Notifications\SmartFactoryAlertNotification;
 use App\Services\Notifications\NotificationDeliveryService;
 use App\Services\Notifications\NotificationLinkFactory;
 use App\Services\Notifications\NotificationRecipientResolver;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 final class ProductionRecordNotificationObserver
 {
@@ -94,13 +97,19 @@ final class ProductionRecordNotificationObserver
                 ]
             );
 
-        $this->delivery->sendToMany(
-            $this->recipients
-                ->usersWithPermission(
-                    PermissionName
-                        ::ValidateProductionRecords
-                ),
-            $notification
+        $this->sendManySafely(
+            recipients:
+                $this->recipients
+                    ->usersWithPermission(
+                        PermissionName
+                            ::ValidateProductionRecords
+                    ),
+            notification:
+                $notification,
+            record:
+                $record,
+            recipientGroup:
+                'production-record-validator'
         );
     }
 
@@ -156,9 +165,84 @@ final class ProductionRecordNotificationObserver
                 ]
             );
 
-        $this->delivery->send(
-            $operatorUser,
-            $notification
+        $this->sendOneSafely(
+            recipient:
+                $operatorUser,
+            notification:
+                $notification,
+            record:
+                $record,
+            recipientGroup:
+                'reporting-operator'
+        );
+    }
+
+    /**
+     * @param iterable<User> $recipients
+     */
+    private function sendManySafely(
+        iterable $recipients,
+        SmartFactoryAlertNotification $notification,
+        ProductionRecord $record,
+        string $recipientGroup
+    ): void {
+        try {
+            $this->delivery->sendToMany(
+                $recipients,
+                $notification
+            );
+        } catch (Throwable $exception) {
+            $this->logDeliveryFailure(
+                record:
+                    $record,
+                recipientGroup:
+                    $recipientGroup,
+                exception:
+                    $exception
+            );
+        }
+    }
+
+    private function sendOneSafely(
+        User $recipient,
+        SmartFactoryAlertNotification $notification,
+        ProductionRecord $record,
+        string $recipientGroup
+    ): void {
+        try {
+            $this->delivery->send(
+                $recipient,
+                $notification
+            );
+        } catch (Throwable $exception) {
+            $this->logDeliveryFailure(
+                record:
+                    $record,
+                recipientGroup:
+                    $recipientGroup,
+                exception:
+                    $exception
+            );
+        }
+    }
+
+    private function logDeliveryFailure(
+        ProductionRecord $record,
+        string $recipientGroup,
+        Throwable $exception
+    ): void {
+        Log::warning(
+            'A production-record notification failed safely.',
+            [
+                'production_record_id' =>
+                    (int) $record->getKey(),
+
+                'recipient_group' =>
+                    $recipientGroup,
+
+                'exception_class' =>
+                    $exception::class,
+            ]
         );
     }
 }

@@ -34,7 +34,16 @@ final class ProductionWorkflowPermissionsSeeder extends Seeder
          */
         $assignments = [
             RoleName::Operator->value => [
+                PermissionName::ViewAssignedProductionLine,
+                PermissionName::ViewAssignedProductionOrders,
+                PermissionName::ViewProductionTargets,
+                PermissionName::CreateProductionRecords,
+                PermissionName::ViewOwnProductionRecords,
+                PermissionName::UpdateRecentProductionRecords,
                 PermissionName::SubmitProductionRecords,
+                PermissionName::ReportDowntime,
+                PermissionName::ReportMachineIncident,
+                PermissionName::AddProductionEventComment,
                 PermissionName::ViewProductionEvents,
             ],
 

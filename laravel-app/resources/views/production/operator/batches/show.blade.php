@@ -21,7 +21,7 @@
             </div>
         </div>
 
-        <div class="d-flex gap-2">
+        <div class="d-flex flex-wrap gap-2">
             @can(
                 'create',
                 [
@@ -36,23 +36,80 @@
                             $productionBatch
                         )
                     }}"
-                    class="btn btn-primary"
+                    class="btn btn-success"
                 >
-                    New production record
+                    Enter production data
                 </a>
             @endcan
 
-            <a
-                href="{{
-                    route(
-                        'production.operator.events.create',
-                        $productionBatch
-                    )
-                }}"
-                class="btn btn-outline-danger"
-            >
-                Report event
-            </a>
+            @can(
+                'report',
+                [
+                    \App\Models\ProductionEvent::class,
+                    \App\Enums\Production\ProductionEventType::MachineIncident
+                ]
+            )
+                <a
+                    href="{{
+                        route(
+                            'production.operator.events.create',
+                            [
+                                'productionBatch' => $productionBatch,
+                                'event_type' => \App\Enums\Production\ProductionEventType::MachineIncident->value,
+                            ]
+                        )
+                    }}"
+                    class="btn btn-danger"
+                >
+                    Report machine not working
+                </a>
+            @endcan
+
+            @can(
+                'report',
+                [
+                    \App\Models\ProductionEvent::class,
+                    \App\Enums\Production\ProductionEventType::Downtime
+                ]
+            )
+                <a
+                    href="{{
+                        route(
+                            'production.operator.events.create',
+                            [
+                                'productionBatch' => $productionBatch,
+                                'event_type' => \App\Enums\Production\ProductionEventType::Downtime->value,
+                            ]
+                        )
+                    }}"
+                    class="btn btn-outline-danger"
+                >
+                    Report downtime
+                </a>
+            @endcan
+
+            @can(
+                'report',
+                [
+                    \App\Models\ProductionEvent::class,
+                    \App\Enums\Production\ProductionEventType::Comment
+                ]
+            )
+                <a
+                    href="{{
+                        route(
+                            'production.operator.events.create',
+                            [
+                                'productionBatch' => $productionBatch,
+                                'event_type' => \App\Enums\Production\ProductionEventType::Comment->value,
+                            ]
+                        )
+                    }}"
+                    class="btn btn-outline-primary"
+                >
+                    Add event comment
+                </a>
+            @endcan
 
             <a
                 href="{{

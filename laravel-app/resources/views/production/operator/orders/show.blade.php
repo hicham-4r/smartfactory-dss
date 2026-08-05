@@ -119,7 +119,7 @@
                             <th>Status</th>
                             <th>Planned quantity</th>
                             <th>Scheduled start</th>
-                            <th></th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
 
@@ -149,17 +149,76 @@
                                 </td>
 
                                 <td class="text-end">
-                                    <a
-                                        href="{{
-                                            route(
-                                                'production.operator.batches.show',
-                                                $batch
-                                            )
-                                        }}"
-                                        class="btn btn-sm btn-outline-primary"
+                                    <div
+                                        class="d-inline-flex flex-wrap justify-content-end gap-1"
                                     >
-                                        Open batch
-                                    </a>
+                                        @can(
+                                            'create',
+                                            [
+                                                \App\Models\ProductionRecord::class,
+                                                $batch
+                                            ]
+                                        )
+                                            <a
+                                                href="{{
+                                                    route(
+                                                        'production.operator.records.create',
+                                                        $batch
+                                                    )
+                                                }}"
+                                                class="btn btn-sm btn-success"
+                                            >
+                                                Enter production
+                                            </a>
+                                        @endcan
+
+                                        @if (
+                                            in_array(
+                                                $batch->status,
+                                                [
+                                                    \App\Enums\Production\ProductionBatchStatus::Ready,
+                                                    \App\Enums\Production\ProductionBatchStatus::InProgress,
+                                                    \App\Enums\Production\ProductionBatchStatus::Blocked,
+                                                ],
+                                                true
+                                            )
+                                        )
+                                            @can(
+                                                'report',
+                                                [
+                                                    \App\Models\ProductionEvent::class,
+                                                    \App\Enums\Production\ProductionEventType::MachineIncident
+                                                ]
+                                            )
+                                                <a
+                                                    href="{{
+                                                        route(
+                                                            'production.operator.events.create',
+                                                            [
+                                                                'productionBatch' => $batch,
+                                                                'event_type' => \App\Enums\Production\ProductionEventType::MachineIncident->value,
+                                                            ]
+                                                        )
+                                                    }}"
+                                                    class="btn btn-sm btn-danger"
+                                                >
+                                                    Machine not working
+                                                </a>
+                                            @endcan
+                                        @endif
+
+                                        <a
+                                            href="{{
+                                                route(
+                                                    'production.operator.batches.show',
+                                                    $batch
+                                                )
+                                            }}"
+                                            class="btn btn-sm btn-outline-primary"
+                                        >
+                                            Open batch
+                                        </a>
+                                    </div>
                                 </td>
                             </tr>
                         @empty

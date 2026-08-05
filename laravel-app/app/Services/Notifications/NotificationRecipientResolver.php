@@ -46,11 +46,20 @@ final class NotificationRecipientResolver
             return new Collection();
         }
 
+        /*
+         * Spatie's permission scope accepts a permission followed by
+         * a boolean "without" flag. It does not accept a guard name
+         * as its second argument. Passing "web" there is truthy and
+         * selects users without the permission.
+         *
+         * The permission existence check above already validates the
+         * configured guard, while the User model resolves its default
+         * guard internally.
+         */
         return User::query()
             ->where('is_active', true)
             ->permission(
-                $permissionValue,
-                $guardName
+                $permissionValue
             )
             ->orderBy('users.id')
             ->get();

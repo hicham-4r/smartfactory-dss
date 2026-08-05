@@ -419,6 +419,106 @@ class OperatorProductionHttpTest extends TestCase
         );
     }
 
+    public function test_operator_workspace_exposes_direct_production_and_incident_actions(): void
+    {
+        $context =
+            $this->operatorContext();
+
+        $flow = $this->createFlow(
+            $context['assignment'],
+            'QUICK-ACTIONS'
+        );
+
+        $response = $this
+            ->actingAs($context['user'])
+            ->get(
+                route(
+                    'production.operator.index',
+                    [
+                        'reference_date' =>
+                            '2026-07-15',
+                    ]
+                )
+            );
+
+        $response
+            ->assertOk()
+            ->assertSeeText(
+                'Quick operator actions'
+            )
+            ->assertSeeText(
+                'Enter production data'
+            )
+            ->assertSeeText(
+                'Report machine not working'
+            )
+            ->assertSee(
+                route(
+                    'production.operator.records.create',
+                    $flow['batch']
+                ),
+                false
+            )
+            ->assertSee(
+                route(
+                    'production.operator.events.create',
+                    [
+                        'productionBatch' =>
+                            $flow['batch'],
+
+                        'event_type' =>
+                            ProductionEventType
+                                ::MachineIncident
+                                ->value,
+                    ]
+                ),
+                false
+            );
+    }
+
+    public function test_machine_incident_quick_action_prefills_event_form(): void
+    {
+        $context =
+            $this->operatorContext();
+
+        $flow = $this->createFlow(
+            $context['assignment'],
+            'PREFILL'
+        );
+
+        $this
+            ->actingAs($context['user'])
+            ->get(
+                route(
+                    'production.operator.events.create',
+                    [
+                        'productionBatch' =>
+                            $flow['batch'],
+
+                        'event_type' =>
+                            ProductionEventType
+                                ::MachineIncident
+                                ->value,
+                    ]
+                )
+            )
+            ->assertOk()
+            ->assertSee(
+                'value="Machine not working"',
+                false
+            )
+            ->assertSeeText(
+                'Operators can report'
+            )
+            ->assertSeeText(
+                'events but cannot resolve or close them.'
+            )
+            ->assertSee(
+                'value="machine_incident"',
+                false
+            );
+    }
+
     public function test_production_manager_cannot_access_operator_interface(): void
     {
         $manager = $this->userWithRole(

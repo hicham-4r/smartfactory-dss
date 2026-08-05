@@ -2,6 +2,7 @@
 
 namespace App\Services\Production;
 
+use App\Enums\Production\ProductionBatchStatus;
 use App\Enums\Production\ProductionEventType;
 use App\Enums\Production\ProductionOrderStatus;
 use App\Enums\Production\ProductionRecordStatus;
@@ -84,6 +85,33 @@ final class OperatorProductionQueryService
                 'product',
                 'productionLine',
                 'shift',
+
+                /*
+                 * Load only batches that may still require operator action.
+                 * Record creation remains protected by the existing policy,
+                 * while downtime and machine incidents can be reported for
+                 * ready, in-progress, or blocked assigned work.
+                 */
+                'batches' => fn ($query) =>
+                    $query
+                        ->whereIn(
+                            'status',
+                            [
+                                ProductionBatchStatus::Ready->value,
+                                ProductionBatchStatus::InProgress->value,
+                                ProductionBatchStatus::Blocked->value,
+                            ]
+                        )
+                        ->orderByRaw(
+                            "CASE status
+                                WHEN 'in_progress' THEN 1
+                                WHEN 'ready' THEN 2
+                                WHEN 'blocked' THEN 3
+                                ELSE 4
+                            END"
+                        )
+                        ->orderBy('sequence_number')
+                        ->orderBy('id'),
             ])
             ->withCount('batches');
 

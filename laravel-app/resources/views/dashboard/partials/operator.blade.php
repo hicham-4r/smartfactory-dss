@@ -20,6 +20,13 @@
             default => 'text-bg-info',
         };
     };
+
+    $quickActionOrder = collect(
+        $snapshot->assignedOrders
+    )->first(
+        static fn ($order): bool =>
+            $order->hasActionableBatch()
+    );
 @endphp
 
 <section
@@ -48,12 +55,43 @@
             $snapshot->profileLinked
             && $snapshot->operatorActive
         )
-            <a
-                href="{{ route('production.operator.index') }}"
-                class="btn btn-primary"
-            >
-                Open operator workspace
-            </a>
+            <div class="d-flex flex-wrap justify-content-end gap-2">
+                @if ($quickActionOrder !== null)
+                    <a
+                        href="{{
+                            route(
+                                'production.operator.records.create',
+                                $quickActionOrder->actionBatchId
+                            )
+                        }}"
+                        class="btn btn-success"
+                    >
+                        Enter production data
+                    </a>
+
+                    <a
+                        href="{{
+                            route(
+                                'production.operator.events.create',
+                                [
+                                    'productionBatch' => $quickActionOrder->actionBatchId,
+                                    'event_type' => \App\Enums\Production\ProductionEventType::MachineIncident->value,
+                                ]
+                            )
+                        }}"
+                        class="btn btn-danger"
+                    >
+                        Report machine not working
+                    </a>
+                @endif
+
+                <a
+                    href="{{ route('production.operator.index') }}"
+                    class="btn btn-primary"
+                >
+                    Open operator workspace
+                </a>
+            </div>
         @else
             <span class="btn btn-secondary disabled" aria-disabled="true">
                 Operator workspace unavailable
@@ -65,6 +103,20 @@
         <strong>Access basis:</strong>
         {{ $snapshot->dataBasisLabel() }}
     </div>
+
+    @if (
+        $snapshot->profileLinked
+        && $snapshot->operatorActive
+        && $snapshot->hasActiveAssignment()
+        && $quickActionOrder === null
+    )
+        <div class="alert alert-warning" role="alert">
+            <strong>No in-progress batch is available for quick entry.</strong>
+            Open the operator workspace to review assigned orders. Production
+            entry and incident reporting are linked to an active production
+            batch; the production supervisor must prepare or start that batch.
+        </div>
+    @endif
 
     @if (! $snapshot->profileLinked)
         <div class="alert alert-danger" role="alert">

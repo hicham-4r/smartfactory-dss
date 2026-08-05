@@ -74,6 +74,158 @@
         </div>
     </div>
 
+
+    @php
+        $hasQuickActionBatch = false;
+    @endphp
+
+    <div class="card shadow-sm border-primary mb-4">
+        <div
+            class="card-header bg-primary text-white d-flex flex-wrap justify-content-between align-items-center gap-2"
+        >
+            <div>
+                <div class="fw-semibold">
+                    Quick operator actions
+                </div>
+
+                <div class="small opacity-75">
+                    Enter production data or report a line problem without
+                    searching through several pages.
+                </div>
+            </div>
+        </div>
+
+        <div class="card-body">
+            <div class="row g-3">
+                @foreach ($orders as $order)
+                    @foreach ($order->batches as $batch)
+                        @php
+                            $hasQuickActionBatch = true;
+                        @endphp
+
+                        <div class="col-12 col-xl-6">
+                            <div class="border rounded h-100 p-3">
+                                <div
+                                    class="d-flex flex-wrap justify-content-between align-items-start gap-2 mb-3"
+                                >
+                                    <div>
+                                        <div class="fw-semibold">
+                                            {{ $batch->batch_number }}
+                                        </div>
+
+                                        <div class="small text-muted">
+                                            {{ $order->order_number }}
+                                            ·
+                                            {{
+                                                $order->product?->name
+                                                ?? $order->product?->code
+                                                ?? 'Product'
+                                            }}
+                                        </div>
+                                    </div>
+
+                                    <span class="badge text-bg-secondary">
+                                        {{ $batch->status->label() }}
+                                    </span>
+                                </div>
+
+                                <div class="d-flex flex-wrap gap-2">
+                                    @can(
+                                        'create',
+                                        [
+                                            \App\Models\ProductionRecord::class,
+                                            $batch
+                                        ]
+                                    )
+                                        <a
+                                            href="{{
+                                                route(
+                                                    'production.operator.records.create',
+                                                    $batch
+                                                )
+                                            }}"
+                                            class="btn btn-success"
+                                        >
+                                            Enter production data
+                                        </a>
+                                    @endcan
+
+                                    @can(
+                                        'report',
+                                        [
+                                            \App\Models\ProductionEvent::class,
+                                            \App\Enums\Production\ProductionEventType::MachineIncident
+                                        ]
+                                    )
+                                        <a
+                                            href="{{
+                                                route(
+                                                    'production.operator.events.create',
+                                                    [
+                                                        'productionBatch' => $batch,
+                                                        'event_type' => \App\Enums\Production\ProductionEventType::MachineIncident->value,
+                                                    ]
+                                                )
+                                            }}"
+                                            class="btn btn-danger"
+                                        >
+                                            Report machine not working
+                                        </a>
+                                    @endcan
+
+                                    @can(
+                                        'report',
+                                        [
+                                            \App\Models\ProductionEvent::class,
+                                            \App\Enums\Production\ProductionEventType::Downtime
+                                        ]
+                                    )
+                                        <a
+                                            href="{{
+                                                route(
+                                                    'production.operator.events.create',
+                                                    [
+                                                        'productionBatch' => $batch,
+                                                        'event_type' => \App\Enums\Production\ProductionEventType::Downtime->value,
+                                                    ]
+                                                )
+                                            }}"
+                                            class="btn btn-outline-danger"
+                                        >
+                                            Report downtime
+                                        </a>
+                                    @endcan
+
+                                    <a
+                                        href="{{
+                                            route(
+                                                'production.operator.batches.show',
+                                                $batch
+                                            )
+                                        }}"
+                                        class="btn btn-outline-secondary"
+                                    >
+                                        Open batch
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    @endforeach
+                @endforeach
+            </div>
+
+            @if (! $hasQuickActionBatch)
+                <div class="alert alert-warning mb-0" role="alert">
+                    <strong>No reportable production batch is available.</strong>
+                    An operator action must be linked to assigned work that is
+                    ready, in progress, or blocked. Ask the production
+                    supervisor to release or start a batch, then refresh this
+                    workspace.
+                </div>
+            @endif
+        </div>
+    </div>
+
     <div class="card shadow-sm mb-4">
         <div class="card-header fw-semibold">
             Assigned production orders
@@ -178,7 +330,7 @@
                             <th>Status</th>
                             <th>Planned start</th>
                             <th>Batches</th>
-                            <th></th>
+                            <th class="text-end">Actions</th>
                         </tr>
                     </thead>
 
