@@ -2,6 +2,7 @@
 
 ARG PHP_IMAGE=php:8.3.32-fpm-bookworm
 ARG COMPOSER_IMAGE=composer:2.10.2
+ARG NODE_IMAGE=node:24.16-bookworm-slim
 
 FROM ${COMPOSER_IMAGE} AS composer_binary
 
@@ -55,8 +56,6 @@ COPY docker/php/zz-smartfactory-fpm.conf /usr/local/etc/php-fpm.d/zz-smartfactor
 COPY docker/php/entrypoint.sh /usr/local/bin/smartfactory-php-entrypoint
 
 RUN chmod 0755 /usr/local/bin/smartfactory-php-entrypoint
-
-ARG NODE_IMAGE=node:24.16-bookworm-slim
 
 FROM ${NODE_IMAGE} AS frontend
 
