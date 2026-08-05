@@ -31,7 +31,6 @@ RUN apt-get update \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
         curl \
-        dom \
         exif \
         gd \
         intl \
@@ -39,12 +38,14 @@ RUN apt-get update \
         opcache \
         pcntl \
         pdo_mysql \
-        simplexml \
         sockets \
+        zip \
+    && docker-php-ext-install dom \
+    && docker-php-ext-install -j"$(nproc)" \
+        simplexml \
         xml \
         xmlreader \
         xmlwriter \
-        zip \
     && pecl install "redis-${PHPREDIS_VERSION}" \
     && docker-php-ext-enable redis \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
