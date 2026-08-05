@@ -85,6 +85,7 @@ services:
       - ./deploy/compose/env/fastapi/.env
     volumes:
       - ai-runtime-data:/var/lib/smartfactory-ai
+      - ai-datasets:/var/lib/smartfactory-ai/datasets:ro
     networks:
       - ai-link
     extra_hosts:
@@ -113,6 +114,7 @@ services:
         condition: service_healthy
     volumes:
       - laravel-storage:/var/www/html/storage
+      - ai-datasets:/var/lib/smartfactory-ai/datasets
     networks:
       - edge
       - dss-data
@@ -146,6 +148,7 @@ services:
         condition: service_healthy
     volumes:
       - laravel-storage:/var/www/html/storage
+      - ai-datasets:/var/lib/smartfactory-ai/datasets
     networks:
       - dss-data
       - ai-link
@@ -175,6 +178,7 @@ services:
         condition: service_healthy
     volumes:
       - laravel-storage:/var/www/html/storage
+      - ai-datasets:/var/lib/smartfactory-ai/datasets
     networks:
       - dss-data
       - ai-link
@@ -247,4 +251,5 @@ volumes:
   redis-data:
   laravel-storage:
   simulator-storage:
+  ai-datasets:
   ai-runtime-data:

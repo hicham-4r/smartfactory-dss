@@ -86,3 +86,21 @@ The initial Ubuntu VM deployment uses loopback HTTP, so the generated Laravel
 and simulator environment templates set secure cookies to `false`. A TLS
 deployment must set secure cookies back to `true` and use HTTPS application
 URLs.
+
+## Shared AI dataset volume
+
+Docker Compose uses the dedicated named volume `ai-datasets` as the
+file-based trust boundary between Laravel and FastAPI.
+
+- Laravel mounts `/var/lib/smartfactory-ai/datasets` read-write and is the
+  only service allowed to publish sanitized snapshots from the DSS database.
+- FastAPI mounts the same path read-only and verifies published manifests,
+  checksums, schemas, file sizes, and row counts.
+- FastAPI does not receive DSS or simulated ERP database connectivity.
+- The `ai-runtime-data` volume remains separate for preprocessing, feature,
+  model, and other AI runtime artifacts.
+- Queue and scheduler profiles declare the same Laravel dataset mount for
+  configuration consistency, but remain opt-in and stopped during local
+  development.
+- Dataset files, manifests, model artifacts, and real environment files are
+  runtime data and must never be committed to Git.

@@ -27,6 +27,7 @@ REQUIRED_VOLUMES = {
     "redis-data",
     "laravel-storage",
     "simulator-storage",
+    "ai-datasets",
     "ai-runtime-data",
 }
 REQUIRED_NETWORKS = {"edge", "ai-link", "dss-data", "erp-data"}
