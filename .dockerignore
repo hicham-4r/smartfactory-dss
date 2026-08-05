@@ -23,9 +23,14 @@
 **/public/hot
 **/public/storage/
 
-**/datasets/
-**/models/
-**/artifacts/
+# Scoped ML runtime data and generated artifacts.
+# Application source directories such as app/Models must remain tracked.
+fastapi-ai/datasets/
+fastapi-ai/models/
+fastapi-ai/artifacts/
+**/storage/app/ai/datasets/
+**/storage/app/ai/models/
+**/storage/app/ai/artifacts/
 **/*.joblib
 **/*.pkl
 **/*.pickle
