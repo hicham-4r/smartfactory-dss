@@ -1,0 +1,250 @@
+name: smartfactory-dss
+
+services:
+  mysql-dss:
+    image: mysql:8.4.10
+    restart: unless-stopped
+    env_file:
+      - ./deploy/compose/env/mysql-dss/.env
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - dss-mysql-data:/var/lib/mysql
+      - ./deploy/compose/mysql/smartfactory.cnf:/etc/mysql/conf.d/zz-smartfactory.cnf:ro
+    networks:
+      - dss-data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 30s
+
+  mysql-erp:
+    image: mysql:8.4.10
+    restart: unless-stopped
+    env_file:
+      - ./deploy/compose/env/mysql-erp/.env
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --default-time-zone=+00:00
+    volumes:
+      - erp-mysql-data:/var/lib/mysql
+      - ./deploy/compose/mysql/smartfactory.cnf:/etc/mysql/conf.d/zz-smartfactory.cnf:ro
+    networks:
+      - erp-data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - mysqladmin ping -h 127.0.0.1 -uroot -p"$$MYSQL_ROOT_PASSWORD" --silent
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    stop_grace_period: 30s
+
+  redis:
+    image: redis:8.0.5-bookworm
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --save
+      - "60"
+      - "1000"
+    volumes:
+      - redis-data:/data
+    networks:
+      - dss-data
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 20s
+
+  fastapi-ai:
+    image: smartfactory/fastapi-ai:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    build:
+      context: .
+      dockerfile: docker/fastapi/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/compose/env/fastapi/.env
+    volumes:
+      - ai-runtime-data:/var/lib/smartfactory-ai
+    networks:
+      - ai-link
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 20s
+
+  laravel-app:
+    image: smartfactory/laravel:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    build:
+      context: .
+      dockerfile: docker/laravel/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/compose/env/laravel/.env
+    depends_on:
+      mysql-dss:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      fastapi-ai:
+        condition: service_healthy
+    volumes:
+      - laravel-storage:/var/www/html/storage
+    networks:
+      - edge
+      - dss-data
+      - ai-link
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 30s
+
+  laravel-queue:
+    image: smartfactory/laravel:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    profiles:
+      - workers
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/compose/env/laravel/.env
+    command:
+      - php
+      - artisan
+      - queue:work
+      - --sleep=3
+      - --tries=3
+      - --max-time=3600
+      - --queue=erp-sync,default
+    depends_on:
+      mysql-dss:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - laravel-storage:/var/www/html/storage
+    networks:
+      - dss-data
+      - ai-link
+      - edge
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 60s
+
+  laravel-scheduler:
+    image: smartfactory/laravel:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    profiles:
+      - workers
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/compose/env/laravel/.env
+    command:
+      - php
+      - artisan
+      - schedule:work
+    depends_on:
+      mysql-dss:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - laravel-storage:/var/www/html/storage
+    networks:
+      - dss-data
+      - ai-link
+      - edge
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 30s
+
+  sage-erp-simulator:
+    image: smartfactory/erp-simulator:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    build:
+      context: .
+      dockerfile: docker/erp-simulator/Dockerfile
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./deploy/compose/env/simulator/.env
+    depends_on:
+      mysql-erp:
+        condition: service_healthy
+    volumes:
+      - simulator-storage:/var/www/simulator/storage
+    networks:
+      - edge
+      - erp-data
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    stop_grace_period: 30s
+
+  nginx:
+    image: smartfactory/nginx:${SMARTFACTORY_IMAGE_TAG:-97467e44}
+    build:
+      context: .
+      dockerfile: docker/nginx/Dockerfile
+    restart: unless-stopped
+    init: true
+    depends_on:
+      laravel-app:
+        condition: service_healthy
+      sage-erp-simulator:
+        condition: service_healthy
+    ports:
+      - "${SMARTFACTORY_DSS_BIND_ADDRESS:-127.0.0.1}:${SMARTFACTORY_DSS_PORT:-8080}:8080"
+      - "${SMARTFACTORY_ERP_BIND_ADDRESS:-127.0.0.1}:${SMARTFACTORY_ERP_PORT:-8082}:8082"
+    networks:
+      - edge
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+      - /var/cache/nginx:size=64m,mode=0755
+      - /var/run:size=16m,mode=0755
+    stop_grace_period: 20s
+
+networks:
+  edge:
+  ai-link:
+  dss-data:
+    internal: true
+  erp-data:
+    internal: true
+
+volumes:
+  dss-mysql-data:
+  erp-mysql-data:
+  redis-data:
+  laravel-storage:
+  simulator-storage:
+  ai-runtime-data:
