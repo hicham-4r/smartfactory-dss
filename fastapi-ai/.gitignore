@@ -11,9 +11,11 @@ build/
 *.egg-info/
 logs/
 tmp/
-models/
-artifacts/
-datasets/
+# Runtime ML data and generated artifacts at the FastAPI project root only.
+# Python source packages such as app/models and app/datasets must stay tracked.
+/models/
+/artifacts/
+/datasets/
 *.joblib
 *.pkl
 *.pickle
