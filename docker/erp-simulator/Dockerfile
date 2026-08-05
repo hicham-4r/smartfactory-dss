@@ -16,39 +16,27 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
-        libcurl4-openssl-dev \
         libfcgi-bin \
         libfreetype6-dev \
         libicu-dev \
         libjpeg62-turbo-dev \
-        libonig-dev \
         libpng-dev \
-        libxml2-dev \
         libzip-dev \
         unzip \
     && docker-php-ext-configure gd --with-freetype --with-jpeg \
     && docker-php-ext-install -j"$(nproc)" \
         bcmath \
-        curl \
         exif \
         gd \
         intl \
-        mbstring \
-        opcache \
         pcntl \
         pdo_mysql \
         sockets \
         zip \
-    && docker-php-ext-install dom \
-    && docker-php-ext-install -j"$(nproc)" \
-        simplexml \
-        xml \
-        xmlreader \
-        xmlwriter \
     && pecl install "redis-${PHPREDIS_VERSION}" \
     && docker-php-ext-enable redis \
+    && php -r '$required = ["bcmath", "curl", "dom", "exif", "fileinfo", "gd", "iconv", "intl", "mbstring", "openssl", "pcntl", "pdo_mysql", "redis", "SimpleXML", "sockets", "tokenizer", "xml", "xmlreader", "xmlwriter", "zip", "Zend OPcache"]; $missing = array_values(array_filter($required, static fn (string $extension): bool => ! extension_loaded($extension))); if ($missing !== []) { fwrite(STDERR, "Missing PHP extensions: ".implode(", ", $missing).PHP_EOL); exit(1); }' \
     && rm -rf /var/lib/apt/lists/* /tmp/pear
-
 COPY --from=composer_binary /usr/bin/composer /usr/local/bin/composer
 COPY docker/php/php.ini /usr/local/etc/php/conf.d/99-smartfactory.ini
 COPY docker/php/opcache.ini /usr/local/etc/php/conf.d/99-smartfactory-opcache.ini
