@@ -186,7 +186,7 @@
                                 data-production-line-id="{{ $machine->production_line_id }}"
                                 @selected($filter->machineId === (int) $machine->id)
                             >
-                                {{ $machine->production_line_name }} â€” {{ $machine->name }}
+                                {{ $machine->production_line_name }} &mdash; {{ $machine->name }}
                             </option>
                         @endforeach
                     </select>

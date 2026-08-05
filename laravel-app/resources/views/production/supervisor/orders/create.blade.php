@@ -3,6 +3,42 @@
 @section('title', 'New Production Order')
 
 @section('content')
+    @php
+        $shiftDisplayKey = static function ($shift): string {
+            $label = preg_replace(
+                '/\s+/u',
+                ' ',
+                trim(
+                    (string) (
+                        $shift->name
+                        ?? $shift->code
+                        ?? ''
+                    )
+                )
+            );
+
+            return mb_strtolower(
+                $label ?? ''
+            )
+                .'|'
+                .(string) ($shift->starts_at ?? '')
+                .'|'
+                .(string) ($shift->ends_at ?? '');
+        };
+
+        $selectedShiftId =
+            (string) old('shift_id');
+
+        $displayShifts = $shifts
+            ->sortByDesc(
+                static fn ($shift): bool =>
+                    (string) $shift->id
+                    === $selectedShiftId
+            )
+            ->unique($shiftDisplayKey)
+            ->values();
+    @endphp
+
 <div class="container py-4">
     @include(
         'production.supervisor.partials.alerts'
@@ -139,7 +175,7 @@
                             Any eligible shift
                         </option>
 
-                        @foreach ($shifts as $shift)
+                        @foreach ($displayShifts as $shift)
                             <option
                                 value="{{ $shift->id }}"
                                 @selected(

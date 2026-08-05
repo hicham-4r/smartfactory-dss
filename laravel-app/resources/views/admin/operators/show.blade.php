@@ -3,6 +3,42 @@
 @section('title', 'Manage Operator')
 
 @section('content')
+    @php
+        $shiftDisplayKey = static function ($shift): string {
+            $label = preg_replace(
+                '/\s+/u',
+                ' ',
+                trim(
+                    (string) (
+                        $shift->name
+                        ?? $shift->code
+                        ?? ''
+                    )
+                )
+            );
+
+            return mb_strtolower(
+                $label ?? ''
+            )
+                .'|'
+                .(string) ($shift->starts_at ?? '')
+                .'|'
+                .(string) ($shift->ends_at ?? '');
+        };
+
+        $selectedShiftId =
+            (string) old('shift_id');
+
+        $displayShifts = $shifts
+            ->sortByDesc(
+                static fn ($shift): bool =>
+                    (string) $shift->id
+                    === $selectedShiftId
+            )
+            ->unique($shiftDisplayKey)
+            ->values();
+    @endphp
+
     <div class="d-flex flex-wrap justify-content-between
                 align-items-center gap-3 mb-4">
         <div>
@@ -273,7 +309,7 @@
                                 Select a shift
                             </option>
 
-                            @foreach ($shifts as $shift)
+                            @foreach ($displayShifts as $shift)
                                 <option
                                     value="{{ $shift->id }}"
                                     @selected(
@@ -561,7 +597,25 @@
                                                            form-select-sm"
                                                     required
                                                 >
-                                                    @foreach ($shifts as $shift)
+                                                    @php
+                                                        $assignmentDisplayShifts =
+                                                            $shifts
+                                                                ->sortByDesc(
+                                                                    static fn ($shift): bool =>
+                                                                        (int) $shift->id
+                                                                        === (int) $assignment
+                                                                            ->shift_id
+                                                                )
+                                                                ->unique(
+                                                                    $shiftDisplayKey
+                                                                )
+                                                                ->values();
+                                                    @endphp
+
+                                                    @foreach (
+                                                        $assignmentDisplayShifts
+                                                        as $shift
+                                                    )
                                                         <option
                                                             value="{{ $shift->id }}"
                                                             @selected(
