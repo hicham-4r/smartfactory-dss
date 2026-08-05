@@ -88,3 +88,6 @@ fastapi-ai/artifacts/
 ## Generated source-capture files in any project directory
 **/SMARTFACTORY_*_SOURCE.txt
 **/SMARTFACTORY_*_REPORT.txt
+
+# Local browser TLS material generated in Ubuntu
+/deploy/compose/tls/

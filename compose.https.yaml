@@ -1,0 +1,7 @@
+services:
+  nginx:
+    ports:
+      - "${SMARTFACTORY_HTTPS_BIND_ADDRESS:-0.0.0.0}:${SMARTFACTORY_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - ./deploy/compose/tls:/etc/nginx/tls:ro
+      - ./deploy/compose/nginx/https.conf:/etc/nginx/conf.d/zz-smartfactory-https.conf:ro
