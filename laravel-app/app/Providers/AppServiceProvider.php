@@ -123,10 +123,17 @@ class AppServiceProvider extends ServiceProvider
                                 ? $settings
                                 : [],
 
+                        /*
+                         * HTTP is allowed only for explicit non-production
+                         * environments. In the container environment the
+                         * simulator is reached through the private Docker
+                         * edge network and is not published directly.
+                         */
                         allowInsecureTls:
                             $app->environment(
                                 'local',
-                                'testing'
+                                'testing',
+                                'container'
                             )
                     );
             }
