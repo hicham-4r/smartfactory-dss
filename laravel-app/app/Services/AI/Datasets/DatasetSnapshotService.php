@@ -150,11 +150,31 @@ final class DatasetSnapshotService
                 );
             }
 
-            $this->writeAtomic(
+            /*
+             * Staging remains private. Published directories and files
+             * become readable before LATEST makes the snapshot visible.
+             * FastAPI still mounts this volume read-only.
+             */
+            $this->preparePublishedPermissions(
+                root: $root,
+                snapshotDirectory:
+                    $finalDirectory
+            );
+
+            $latestPath =
                 $root
-                    .DIRECTORY_SEPARATOR
-                    .'LATEST',
+                .DIRECTORY_SEPARATOR
+                .'LATEST';
+
+            $this->writeAtomic(
+                $latestPath,
                 $snapshotId."\n"
+            );
+
+            $this->chmodOrFail(
+                $latestPath,
+                0644,
+                'The dataset latest pointer could not be made readable.'
             );
 
             $totalRows = array_sum(
@@ -217,8 +237,14 @@ final class DatasetSnapshotService
     ): void {
         File::ensureDirectoryExists(
             $root,
-            0700,
+            0755,
             true
+        );
+
+        $this->chmodOrFail(
+            $root,
+            0755,
+            'The configured AI dataset root could not be made traversable.'
         );
 
         File::ensureDirectoryExists(
@@ -229,17 +255,75 @@ final class DatasetSnapshotService
             true
         );
 
-        File::ensureDirectoryExists(
+        $snapshotsDirectory =
             $root
-                .DIRECTORY_SEPARATOR
-                .'snapshots',
-            0700,
+            .DIRECTORY_SEPARATOR
+            .'snapshots';
+
+        File::ensureDirectoryExists(
+            $snapshotsDirectory,
+            0755,
             true
+        );
+
+        $this->chmodOrFail(
+            $snapshotsDirectory,
+            0755,
+            'The published snapshot root could not be made traversable.'
         );
 
         if (! is_writable($root)) {
             throw new RuntimeException(
                 'The configured AI dataset root is not writable.'
+            );
+        }
+    }
+
+    private function preparePublishedPermissions(
+        string $root,
+        string $snapshotDirectory
+    ): void {
+        $directories = [
+            $root,
+            $root
+                .DIRECTORY_SEPARATOR
+                .'snapshots',
+            $snapshotDirectory,
+            $snapshotDirectory
+                .DIRECTORY_SEPARATOR
+                .'data',
+        ];
+
+        foreach ($directories as $directory) {
+            $this->chmodOrFail(
+                $directory,
+                0755,
+                'A published dataset directory could not be made readable.'
+            );
+        }
+
+        foreach (
+            File::allFiles(
+                $snapshotDirectory
+            )
+            as $file
+        ) {
+            $this->chmodOrFail(
+                $file->getPathname(),
+                0644,
+                'A published dataset file could not be made readable.'
+            );
+        }
+    }
+
+    private function chmodOrFail(
+        string $path,
+        int $mode,
+        string $message
+    ): void {
+        if (! @chmod($path, $mode)) {
+            throw new RuntimeException(
+                $message
             );
         }
     }

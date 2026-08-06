@@ -118,3 +118,17 @@ the running container.
 
 This operation does not run migrations, seeders, ERP synchronization, or
 persistent workers.
+
+## Published dataset filesystem permissions
+
+Laravel keeps `.staging` private while a snapshot is incomplete. Immediately
+after the atomic rename and before publishing `LATEST`, it assigns:
+
+- `0755` to the shared dataset root, `snapshots`, the immutable snapshot
+  directory, and its `data` directory;
+- `0644` to CSV files, `manifest.json`, `manifest.sha256`, and `LATEST`.
+
+FastAPI still mounts the dataset volume read-only. These modes allow its
+separate non-root runtime user to traverse and validate immutable published
+artifacts without granting any write capability. FastAPI continues to receive
+no database credentials.

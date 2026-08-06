@@ -201,6 +201,80 @@ final class DatasetSnapshotServiceTest extends
     /**
      * @param list<array<string, int|string|null>> $rows
      */
+    public function test_published_snapshot_permissions_allow_a_read_only_consumer(): void
+    {
+        if (DIRECTORY_SEPARATOR === '\\') {
+            $this->markTestSkipped(
+                'POSIX filesystem permissions are verified in the Linux runtime.'
+            );
+        }
+
+        $result = $this
+            ->service(
+                [
+                    $this->productionRow(),
+                ]
+            )
+            ->create(
+                $this->request()
+            );
+
+        $paths = [
+            $this->root => '0755',
+            $this->root
+                .DIRECTORY_SEPARATOR
+                .'snapshots' => '0755',
+            $result->snapshotDirectory =>
+                '0755',
+            $result->snapshotDirectory
+                .DIRECTORY_SEPARATOR
+                .'data' => '0755',
+            $this->root
+                .DIRECTORY_SEPARATOR
+                .'LATEST' => '0644',
+            $result->manifestPath => '0644',
+            $result->snapshotDirectory
+                .DIRECTORY_SEPARATOR
+                .'manifest.sha256' => '0644',
+            $result->snapshotDirectory
+                .DIRECTORY_SEPARATOR
+                .'data'
+                .DIRECTORY_SEPARATOR
+                .'production_records.csv' => '0644',
+        ];
+
+        foreach (
+            $paths
+            as $path => $expectedMode
+        ) {
+            clearstatcache(
+                true,
+                $path
+            );
+
+            $permissions =
+                fileperms(
+                    $path
+                );
+
+            $this->assertIsInt(
+                $permissions
+            );
+
+            $this->assertSame(
+                $expectedMode,
+                substr(
+                    sprintf(
+                        '%o',
+                        $permissions
+                    ),
+                    -4
+                ),
+                $path
+            );
+        }
+    }
+
     private function service(
         array $rows
     ): DatasetSnapshotService {
