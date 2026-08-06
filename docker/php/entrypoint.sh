@@ -22,4 +22,12 @@ chmod -R ug+rwX "${APP_ROOT}/storage" "${APP_ROOT}/bootstrap/cache"
 
 # Migrations, seeding, queue startup, and scheduler startup are intentionally
 # not performed by the image entrypoint. They remain explicit deployment steps.
+# SMARTFACTORY_RUNTIME_CONFIG_CACHE
+# Compile Laravel configuration only after Docker has injected runtime
+# environment values. A build-time cache can freeze fallback paths.
+if [ -f artisan ]; then
+    php artisan config:clear --no-ansi
+    php artisan config:cache --no-ansi
+fi
+
 exec "$@"

@@ -104,3 +104,17 @@ file-based trust boundary between Laravel and FastAPI.
   development.
 - Dataset files, manifests, model artifacts, and real environment files are
   runtime data and must never be committed to Git.
+
+## Runtime Laravel configuration cache
+
+The Laravel image must not rely on a configuration cache compiled before
+Docker Compose injects the container environment.
+
+The PHP entrypoint clears and rebuilds only Laravel's configuration cache
+immediately before starting the requested process. This makes mounted runtime
+settings such as `AI_DATASET_ROOT`, database hosts, Redis hosts, internal
+service URLs, secure-cookie settings, and feature flags authoritative inside
+the running container.
+
+This operation does not run migrations, seeders, ERP synchronization, or
+persistent workers.
