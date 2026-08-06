@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: laravel-config
+data:
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: https://smartfactory.local
+  LOG_CHANNEL: stderr
+  DB_HOST: mysql-dss
+  DB_PORT: "3306"
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  QUEUE_CONNECTION: database
+  SESSION_DRIVER: database
+  SESSION_DOMAIN: smartfactory.local
+  SESSION_SECURE_COOKIE: "true"
+  AI_ALLOW_INTERNAL_HTTP: "true"
+  AI_SERVICE_BASE_URL: http://fastapi-ai:8001
+  AI_SERVICE_VERIFY_TLS: "false"
+  ERP_SIMULATED_SAGE_BASE_URL: http://nginx:8082
+  ERP_SIMULATED_SAGE_VERIFY_TLS: "false"
+  ERP_SYNC_AUTOMATION_ENABLED: "false"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fastapi-config
+data:
+  AI_APP_ENV: production
+  AI_HOST: 0.0.0.0
+  AI_PORT: "8001"
+  AI_DOCS_ENABLED: "false"
+  AI_DATASET_ROOT: /var/lib/smartfactory-ai/datasets
+  AI_FEATURE_ROOT: /var/lib/smartfactory-ai/features
+  AI_MODEL_ROOT: /var/lib/smartfactory-ai/models
+  AI_PREPROCESSING_ROOT: /var/lib/smartfactory-ai/preprocessing
+  AI_OLLAMA_ENABLED: "false"
+  AI_OLLAMA_BASE_URL: http://10.0.2.2:11434
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: erp-simulator-config
+data:
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: http://nginx:8082
+  LOG_CHANNEL: stderr
+  DB_HOST: mysql-erp
+  DB_PORT: "3306"
+  QUEUE_CONNECTION: sync
+  SESSION_DRIVER: file
