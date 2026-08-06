@@ -71,10 +71,36 @@ The Ubuntu host bridge is resolved dynamically through
 
 Private Windows Ollama access uses:
 
-- Pod URL: `http://host.minikube.internal:11435`
+- Pod URL: `http://192.168.49.1:11435`
 - Ubuntu bind address: `192.168.49.1:11435`
 - Windows upstream: `10.0.2.2:11434`
 
 The private proxy uses systemd socket activation and binds only to the resolved
 host bridge. The node probe passes its complete curl expression as one
 Minikube SSH remote command. `AI_OLLAMA_ENABLED` remains `false`.
+
+The FastAPI endpoint validator intentionally accepts private numeric addresses rather than arbitrary hostnames. The Kubernetes ConfigMap therefore stores the verified Minikube bridge IP while the runtime prerequisite check continues to resolve `host.minikube.internal` dynamically.
+
+## Local HTTPS browser access
+
+The VirtualBox NAT demonstration exposes ingress-nginx through a local
+`kubectl port-forward` process on guest port `8443`.
+
+Start or refresh it with:
+
+```bash
+./deploy/kubernetes/scripts/start-browser-proxy.sh
+```
+
+With the existing VirtualBox host-to-guest `8443` forwarding rule, open:
+
+```text
+https://localhost:8443/login
+```
+
+The runtime TLS certificate contains both `smartfactory.local` and `localhost`.
+Laravel uses a host-only secure session cookie so browser authentication works
+through the local `localhost` demonstration route.
+
+The proxy is a local-development access bridge. Production deployment should
+use a managed LoadBalancer or an externally operated ingress endpoint.

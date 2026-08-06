@@ -5,7 +5,7 @@ metadata:
 data:
   APP_ENV: production
   APP_DEBUG: "false"
-  APP_URL: https://smartfactory.local
+  APP_URL: https://localhost:8443
   LOG_CHANNEL: stderr
   DB_HOST: mysql-dss
   DB_PORT: "3306"
@@ -13,7 +13,7 @@ data:
   REDIS_PORT: "6379"
   QUEUE_CONNECTION: database
   SESSION_DRIVER: database
-  SESSION_DOMAIN: smartfactory.local
+  SESSION_DOMAIN: "(null)"
   SESSION_SECURE_COOKIE: "true"
   AI_ALLOW_INTERNAL_HTTP: "true"
   AI_SERVICE_BASE_URL: http://fastapi-ai:8001
@@ -36,7 +36,7 @@ data:
   AI_MODEL_ROOT: /var/lib/smartfactory-ai/models
   AI_PREPROCESSING_ROOT: /var/lib/smartfactory-ai/preprocessing
   AI_OLLAMA_ENABLED: "false"
-  AI_OLLAMA_BASE_URL: http://host.minikube.internal:11435
+  AI_OLLAMA_BASE_URL: http://192.168.49.1:11435
 ---
 apiVersion: v1
 kind: ConfigMap
