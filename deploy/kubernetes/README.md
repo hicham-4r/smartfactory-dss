@@ -60,3 +60,21 @@ Run:
 This renders both Kustomize trees, performs Kubernetes client-side schema
 validation, verifies the nine-Pod baseline, verifies HPA bounds, checks that no
 Secret is committed, and confirms the current cluster remains untouched.
+
+## Step 24D runtime prerequisites
+
+Minikube v1.38.1 uses the compatible built-in `ingress` addon with
+ingress-nginx. Metrics Server supplies HPA resource metrics.
+
+The Ubuntu host bridge is resolved dynamically through
+`host.minikube.internal`.
+
+Private Windows Ollama access uses:
+
+- Pod URL: `http://host.minikube.internal:11435`
+- Ubuntu bind address: `192.168.49.1:11435`
+- Windows upstream: `10.0.2.2:11434`
+
+The private proxy uses systemd socket activation and binds only to the resolved
+host bridge. The node probe passes its complete curl expression as one
+Minikube SSH remote command. `AI_OLLAMA_ENABLED` remains `false`.
