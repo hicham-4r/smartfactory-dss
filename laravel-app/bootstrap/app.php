@@ -5,6 +5,7 @@ use App\Http\Middleware\AssignRequestId;
 use App\Http\Middleware\EnsureAccountCanAuthenticate;
 use App\Http\Middleware\EnsureAdministratorHasTwoFactorAuthentication;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\RecordNativeMetrics;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -20,8 +21,20 @@ return Application::configure(
     )
     ->withMiddleware(
         function (Middleware $middleware): void {
+            /*
+             * TLS terminates at the controlled Kubernetes Ingress. The
+             * application is reachable only through the internal NGINX service
+             * under namespace NetworkPolicies, so forwarded proxy headers from
+             * that path are trusted for scheme-aware URL generation.
+             */
+            $middleware->trustProxies(at: '*');
+
             $middleware->append(
                 AssignRequestId::class
+            );
+
+            $middleware->append(
+                RecordNativeMetrics::class
             );
 
             $middleware->append(

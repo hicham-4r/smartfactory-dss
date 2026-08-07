@@ -91,3 +91,9 @@ spec:
     - name: erp-api
       port: 8082
       targetPort: erp-api
+    - name: laravel-metrics
+      port: 8084
+      targetPort: laravel-metrics
+    - name: erp-metrics
+      port: 8085
+      targetPort: erp-metrics

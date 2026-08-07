@@ -25,7 +25,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: laravel
-          image: smartfactory/laravel:b78c91f9
+          image: smartfactory/laravel:25f0f2-static-metrics-redis
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -104,7 +104,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: fastapi
-          image: smartfactory/fastapi-ai:b78c91f9
+          image: smartfactory/fastapi-ai:25d2g2-3ea78d65231b
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -179,7 +179,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: erp-simulator
-          image: smartfactory/erp-simulator:b78c91f9
+          image: smartfactory/erp-simulator:25f0f2-static-metrics-redis
           imagePullPolicy: IfNotPresent
           envFrom:
             - secretRef:
@@ -248,13 +248,17 @@ spec:
           type: RuntimeDefault
       containers:
         - name: nginx
-          image: smartfactory/nginx:b78c91f9
+          image: smartfactory/nginx:25d2-1b1f16ca1bce
           imagePullPolicy: IfNotPresent
           ports:
             - name: web
               containerPort: 8080
             - name: erp-api
               containerPort: 8082
+            - name: laravel-metrics
+              containerPort: 8084
+            - name: erp-metrics
+              containerPort: 8085
           resources:
             requests:
               cpu: 50m

@@ -1,106 +1,74 @@
-# SmartFactory DSS Kubernetes foundation
+# SmartFactory DSS Kubernetes deployment
 
-This directory defines the source-controlled Kubernetes foundation for the
-SmartFactory DSS local demonstration cluster.
+This directory contains the source-controlled Kubernetes deployment used for the SmartFactory DSS local demonstration and Phase 12 observability acceptance.
 
-## Demonstration topology
+## Accepted topology
 
-The baseline contains nine application Pods on one Minikube node:
+| Workload | Controller | Accepted replicas |
+|---|---|---:|
+| Laravel DSS | Deployment | 2 |
+| FastAPI AI | Deployment | 2 |
+| Sage ERP simulator | Deployment | 1 |
+| MySQL DSS | StatefulSet | 1 |
+| MySQL ERP | StatefulSet | 1 |
+| Redis | StatefulSet | 1 |
+| NGINX | Deployment | 1 |
+| Prometheus | StatefulSet | 1 |
+| Grafana | Deployment | 1 |
+| kube-state-metrics | Deployment | 1 |
+| blackbox exporter | Deployment | 1 |
 
-| Workload | Controller | Baseline | Demo |
-|---|---|---:|---:|
-| Laravel | Deployment | 2 | 3 |
-| FastAPI | Deployment | 2 | 3 |
-| Sage ERP simulator | Deployment | 1 | 1 |
-| MySQL DSS | StatefulSet | 1 | 1 |
-| MySQL ERP | StatefulSet | 1 | 1 |
-| Redis | StatefulSet | 1 | 1 |
-| NGINX | Deployment | 1 | 1 |
-
-Scaling Laravel and FastAPI from two replicas to three increases the total from
-nine to eleven application Pods. This demonstrates horizontal Pod scaling on a
-single node; it is not a multi-node high-availability demonstration.
+The accepted runtime contains 13 ready Pods, zero active-Pod restarts and two HPAs for Laravel/FastAPI. This single-node Minikube deployment demonstrates workload scaling and governance; it is not a multi-node high-availability claim.
 
 ## Source layout
 
-- `base/`: namespace, ConfigMaps, Services, PVCs, controllers, policies,
-  Ingress, and PodDisruptionBudgets.
-- `overlays/demo/`: baseline plus HPAs with minimum two and maximum three
-  replicas for Laravel and FastAPI.
-- `scripts/create-runtime-secrets.sh`: creates runtime Secrets from existing
-  ignored Compose environment files and explicit TLS paths.
-- `scripts/validate-manifests.sh`: renders and client-side validates both
-  Kustomize layers without creating cluster resources.
+- `base/`: namespace, ConfigMaps, Services, PVCs, controllers, policies, Ingress, disruption budgets and resource governance.
+- `overlays/demo/`: application demonstration overlay and HPA behavior.
+- `overlays/monitoring/`: accepted application stack plus monitoring.
+- `monitoring/`: Prometheus, Grafana, kube-state-metrics, blackbox exporter, alert rules and dashboards.
+- `runtime/`: runtime prerequisite documentation.
+- `scripts/create-runtime-secrets.sh`: creates application runtime Secrets from ignored local sources.
+- `scripts/create-grafana-runtime-secret.sh`: creates the Grafana runtime Secret without committing credentials.
+- `scripts/start-browser-proxy.sh`: local HTTPS browser access helper.
+- `scripts/start-monitoring-proxies.sh`: local monitoring access helper.
+- `scripts/validate-*`: source/runtime validators.
 - `secrets/README.md`: secret-handling contract.
 
-## Important state rule
+## State-preservation rule
 
-No Secret object or secret value is committed. Workloads reference Secrets that
-must be created at deployment time.
+Normal validation and rollout preserve MySQL/Redis state, PVCs, Secrets, model artifacts, datasets and Git history. No reset/recreate workflow is part of accepted validation, and runtime Secrets are never committed.
 
-The existing Compose containers, Docker volumes, databases, datasets, model
-artifacts, and source history remain preserved. This foundation does not import
-Compose data into Kubernetes. Storage initialization and migration are separate
-controlled steps.
+## Application boundaries
 
-## Private Ollama dependency
+- **Laravel** is the authenticated browser-facing DSS and owns RBAC, reporting, audit and service orchestration.
+- **FastAPI** is an internal AI boundary for verified ML inference and guarded explanation contracts; it has no direct Laravel/ERP database or Redis access.
+- **Ollama** runs on the Windows host and is reachable only through the verified private Minikube-to-host route. Browsers never access it directly.
+- **Sage ERP simulator** is explicitly a simulated integration source, not a live production Sage instance.
 
-FastAPI is committed with `AI_OLLAMA_ENABLED=false`. Numeric inference can be
-validated without guarded narrative generation. The setting must not be enabled
-until the Minikube-to-Windows private Ollama route is verified.
+## Native metrics
 
-## Validation
+Phase 12 provides private native metrics for Laravel, FastAPI and the ERP simulator. Laravel/ERP metrics pass through private NGINX gateways; FastAPI metrics are restricted to the intended private host boundary. PHP metrics use the dedicated `smartfactory_metrics` Redis connection with bounded connect/read timeouts and local-file fallback so observability fails open quickly during Redis/network disturbances.
 
-Run:
+## Monitoring
 
-```bash
-./deploy/kubernetes/scripts/validate-manifests.sh
-```
-
-This renders both Kustomize trees, performs Kubernetes client-side schema
-validation, verifies the nine-Pod baseline, verifies HPA bounds, checks that no
-Secret is committed, and confirms the current cluster remains untouched.
-
-## Step 24D runtime prerequisites
-
-Minikube v1.38.1 uses the compatible built-in `ingress` addon with
-ingress-nginx. Metrics Server supplies HPA resource metrics.
-
-The Ubuntu host bridge is resolved dynamically through
-`host.minikube.internal`.
-
-Private Windows Ollama access uses:
-
-- Pod URL: `http://192.168.49.1:11435`
-- Ubuntu bind address: `192.168.49.1:11435`
-- Windows upstream: `10.0.2.2:11434`
-
-The private proxy uses systemd socket activation and binds only to the resolved
-host bridge. The node probe passes its complete curl expression as one
-Minikube SSH remote command. `AI_OLLAMA_ENABLED` remains `false`.
-
-The FastAPI endpoint validator intentionally accepts private numeric addresses rather than arbitrary hostnames. The Kubernetes ConfigMap therefore stores the verified Minikube bridge IP while the runtime prerequisite check continues to resolve `host.minikube.internal` dynamically.
+The monitoring overlay provisions Prometheus, Grafana, kube-state-metrics, blackbox exporter, 17 alerting rules, **SmartFactory DSS — Kubernetes Overview** (9 panels), and **SmartFactory DSS — Application Observability** (17 panels). The accepted runtime has 17/17 healthy Prometheus targets.
 
 ## Local HTTPS browser access
 
-The VirtualBox NAT demonstration exposes ingress-nginx through a local
-`kubectl port-forward` process on guest port `8443`.
-
-Start or refresh it with:
+Start or refresh browser access with:
 
 ```bash
 ./deploy/kubernetes/scripts/start-browser-proxy.sh
 ```
 
-With the existing VirtualBox host-to-guest `8443` forwarding rule, open:
+Open:
 
 ```text
 https://localhost:8443/login
 ```
 
-The runtime TLS certificate contains both `smartfactory.local` and `localhost`.
-Laravel uses a host-only secure session cookie so browser authentication works
-through the local `localhost` demonstration route.
+The local VirtualBox/Minikube route is for development/demo use. Production should use externally operated ingress/load balancing, managed certificate lifecycle, durable backup/restore and infrastructure-appropriate secret management.
 
-The proxy is a local-development access bridge. Production deployment should
-use a managed LoadBalancer or an externally operated ingress endpoint.
+## Validation
+
+Source/runtime validators under `deploy/kubernetes/scripts/` cover Kustomize rendering, client-side schemas, HTTPS/session behavior, native metrics privacy/performance, Prometheus targets/rules and Grafana provisioning without resetting application state.

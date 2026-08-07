@@ -1,10 +1,24 @@
 <?php
 
+use App\Http\Controllers\Internal\NativeMetricsController;
 use App\Http\Controllers\Api\ErpMaintenanceDataController;
 use App\Http\Controllers\Api\ErpMasterDataController;
 use App\Http\Controllers\Api\ErpOperationalDataController;
 use App\Http\Controllers\Api\ErpQualityDataController;
 use Illuminate\Support\Facades\Route;
+
+
+/*
+|--------------------------------------------------------------------------
+| Internal Prometheus metrics
+|--------------------------------------------------------------------------
+|
+| Public NGINX listeners deny this path. A dedicated ClusterIP-only NGINX
+| listener exposes it solely to Prometheus through NetworkPolicy.
+|
+*/
+Route::get('/metrics', NativeMetricsController::class)
+    ->name('native-metrics');
 
 /*
 |--------------------------------------------------------------------------

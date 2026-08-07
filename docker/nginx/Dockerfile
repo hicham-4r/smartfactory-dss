@@ -27,7 +27,7 @@ COPY sage-erp-simulator/public /srv/simulator/public
 
 RUN chown -R nginx:nginx /srv/smartfactory /srv/simulator
 
-EXPOSE 8080 8082
+EXPOSE 8080 8082 8084 8085
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD wget -q -O - http://127.0.0.1:8080/nginx-health | grep -q '^ok$' || exit 1

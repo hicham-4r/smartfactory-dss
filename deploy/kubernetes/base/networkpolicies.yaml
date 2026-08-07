@@ -48,6 +48,15 @@ spec:
       ports:
         - protocol: TCP
           port: 8082
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
+      ports:
+        - protocol: TCP
+          port: 8084
+        - protocol: TCP
+          port: 8085
   egress:
     - to:
         - podSelector:
@@ -125,6 +134,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: laravel-app
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: prometheus
       ports:
         - protocol: TCP
           port: 8001
@@ -161,6 +173,13 @@ spec:
       ports:
         - protocol: TCP
           port: 3306
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
