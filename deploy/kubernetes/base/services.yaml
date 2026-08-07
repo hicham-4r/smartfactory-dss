@@ -1,0 +1,99 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-dss
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: mysql-dss
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql-erp
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: mysql-erp
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: redis
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: redis
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: laravel-app
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: laravel-app
+  ports:
+    - name: fastcgi
+      port: 9000
+      targetPort: fastcgi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fastapi-ai
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: fastapi-ai
+  ports:
+    - name: http
+      port: 8001
+      targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sage-erp-simulator
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sage-erp-simulator
+  ports:
+    - name: fastcgi
+      port: 9000
+      targetPort: fastcgi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: nginx
+  ports:
+    - name: web
+      port: 8080
+      targetPort: web
+    - name: erp-api
+      port: 8082
+      targetPort: erp-api
+    - name: laravel-metrics
+      port: 8084
+      targetPort: laravel-metrics
+    - name: erp-metrics
+      port: 8085
+      targetPort: erp-metrics

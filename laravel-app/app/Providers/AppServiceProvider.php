@@ -48,6 +48,7 @@ use Illuminate\Auth\Events\Logout;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use Laravel\Fortify\Events\RecoveryCodesGenerated;
@@ -123,10 +124,17 @@ class AppServiceProvider extends ServiceProvider
                                 ? $settings
                                 : [],
 
+                        /*
+                         * HTTP is allowed only for explicit non-production
+                         * environments. In the container environment the
+                         * simulator is reached through the private Docker
+                         * edge network and is not published directly.
+                         */
                         allowInsecureTls:
                             $app->environment(
                                 'local',
-                                'testing'
+                                'testing',
+                                'container'
                             )
                     );
             }
@@ -167,6 +175,38 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Paginator::useBootstrapFive();
+
+
+        /*
+         * SMARTFACTORY_FORCE_CONFIGURED_APP_URL
+         *
+         * Kubernetes Ingress terminates TLS on port 443 inside the VM, while
+         * the Windows demonstration endpoint reaches it through the explicit
+         * host-forwarded port configured in APP_URL. Trusted proxy headers
+         * correctly restore the HTTPS scheme, but they cannot reconstruct the
+         * outer VirtualBox port. In production, use the configured canonical
+         * application URL for route, form-action, and redirect generation.
+         */
+        if ($this->app->environment('production')) {
+            $configuredUrl = rtrim(
+                (string) config('app.url'),
+                '/'
+            );
+
+            if ($configuredUrl !== '') {
+                URL::forceRootUrl($configuredUrl);
+
+                $configuredScheme = parse_url(
+                    $configuredUrl,
+                    PHP_URL_SCHEME
+                );
+
+                if (is_string($configuredScheme)
+                    && $configuredScheme !== '') {
+                    URL::forceScheme($configuredScheme);
+                }
+            }
+        }
 
         Password::defaults(
             fn (): Password =>

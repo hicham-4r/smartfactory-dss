@@ -2,12 +2,14 @@
 
 # 🏭 SmartFactory DSS
 
-### AI-powered decision support for production, maintenance, quality, and reporting
+### AI-powered enterprise decision support for production, maintenance, quality, and industrial observability
 
-[![Project Status](https://img.shields.io/badge/status-Phase%207%20accepted-2ea44f?style=for-the-badge)](#project-status)
+[![Project Status](https://img.shields.io/badge/status-Phase%2012%20complete-2ea44f?style=for-the-badge)](#project-status)
 [![Laravel](https://img.shields.io/badge/Laravel-12-FF2D20?style=for-the-badge&logo=laravel&logoColor=white)](https://laravel.com/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-AI%20Service-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
-[![Python](https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Minikube-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-Observability-E6522C?style=for-the-badge&logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800?style=for-the-badge&logo=grafana&logoColor=white)](https://grafana.com/)
 [![Ollama](https://img.shields.io/badge/Ollama-llama3%3A8b-black?style=for-the-badge)](https://ollama.com/)
 
 </div>
@@ -16,26 +18,32 @@
 
 ## ✨ Overview
 
-**SmartFactory DSS** is an enterprise decision-support prototype for a Moroccan juice-manufacturing environment. It combines production monitoring, maintenance prioritization, quality control, reporting, machine learning, a simulated Sage ERP, and guarded local AI explanations.
+**SmartFactory DSS** is an enterprise decision-support prototype designed for a Moroccan juice-manufacturing environment. It combines production monitoring, maintenance prioritization, quality control, secure reporting, machine-learning inference, guarded local LLM explanations, a simulated Sage ERP integration layer, containerized delivery, Kubernetes orchestration, and application/platform observability.
 
-> **Important:** all operational and machine-learning outputs currently use `simulated_prototype` data. The platform provides decision support only and never performs autonomous industrial control.
+> **Data and safety note:** the current prototype uses simulated ERP/industrial data. It provides human-controlled decision support only; it does not perform autonomous industrial control or claim validated plant-performance guarantees.
 
 ---
 
 ## 📌 Project status
 
-| Area | Status |
+| Capability | Status |
 |---|---|
-| Simulated Sage ERP integration | ✅ Completed |
-| Production and operational monitoring | ✅ Completed |
-| Maintenance and downtime | ✅ Completed |
-| Quality and finished-lot release | ✅ Completed |
-| Machine-learning inference | ✅ Completed |
-| Guarded role-aware Ollama explanations | ✅ Completed |
-| Secure PDF, Excel, and CSV reporting | ✅ Completed |
-| Containerization and delivery | 🚧 Phase 8 |
+| Simulated Sage ERP integration | ✅ Complete |
+| Production and operational monitoring | ✅ Complete |
+| Maintenance and downtime management | ✅ Complete |
+| Quality inspections and finished-lot release | ✅ Complete |
+| Machine-learning inference and model registry | ✅ Complete |
+| Guarded role-aware Ollama explanations | ✅ Complete |
+| PDF, Excel, and CSV decision-support reporting | ✅ Complete |
+| Authentication, RBAC, 2FA, audit and rate limiting | ✅ Complete |
+| Docker Compose and local HTTPS delivery | ✅ Complete |
+| Kubernetes / Minikube deployment | ✅ Complete |
+| HPA, resource governance and disruption controls | ✅ Complete |
+| Prometheus / Grafana monitoring | ✅ Complete |
+| Private native Laravel, FastAPI and ERP metrics | ✅ Complete |
+| CI/CD-ready validation and deployment workflow | ✅ Complete |
 
-Stable checkpoint: **`phase-7-accepted`**
+**Current accepted Kubernetes runtime:** 13 ready Pods, 0 active-Pod restarts, 2 HPAs and 17/17 healthy Prometheus targets.
 
 ---
 
@@ -43,9 +51,12 @@ Stable checkpoint: **`phase-7-accepted`**
 
 | Component | Location | Responsibility |
 |---|---|---|
-| Laravel DSS | `laravel-app/` | Authentication, RBAC, dashboards, ERP sync, reporting, auditing, AI Insights |
-| FastAPI AI service | `fastapi-ai/` | Verified model inference, guarded prompts, grounding validation, safe fallbacks |
-| Sage ERP simulator | `sage-erp-simulator/` | Simulated master, production, maintenance, and quality data |
+| Laravel DSS | `laravel-app/` | Authentication, RBAC, dashboards, ERP orchestration, reporting, auditing, AI Insights |
+| FastAPI AI service | `fastapi-ai/` | Verified ML inference, guarded prompts, grounding validation and safe fallbacks |
+| Sage ERP simulator | `sage-erp-simulator/` | Simulated master, production, maintenance and quality data |
+| NGINX | `docker/nginx/` | HTTPS entry point, internal routing and private metrics gateway |
+| Kubernetes | `deploy/kubernetes/` | Workloads, Services, policies, HPAs, monitoring and local demo access |
+| Monitoring | `deploy/kubernetes/monitoring/` | Prometheus, Grafana, kube-state-metrics, blackbox exporter, dashboards and alerts |
 
 ---
 
@@ -53,68 +64,107 @@ Stable checkpoint: **`phase-7-accepted`**
 
 ```mermaid
 flowchart LR
-    B[Browser] --> L[Laravel DSS]
-    L -->|Authenticated internal API| F[FastAPI AI Service]
-    F -->|Private local connection| O[Ollama llama3:8b]
-    L --> S[Simulated Sage ERP]
-    L --> D[(MySQL / Redis)]
+    B[Browser] -->|HTTPS| N[NGINX / Ingress]
+    N --> L[Laravel DSS]
+    L -->|Private internal API| F[FastAPI AI]
+    F -->|Guarded local route| O[Ollama llama3:8b]
+    L --> E[Simulated Sage ERP]
+    L --> D[(MySQL DSS)]
+    E --> ED[(MySQL ERP)]
+    L --> R[(Redis)]
+    E --> R
+    P[Prometheus] --> N
+    P --> F
+    G[Grafana] --> P
 ```
 
 ### Security boundaries
 
 - The browser never communicates directly with FastAPI or Ollama.
-- FastAPI has no direct access to Laravel databases or ERP tables.
-- Internal requests use bearer-token authentication and request IDs.
-- Real `.env` files, databases, datasets, model artifacts, generated archives, and backups are excluded from Git.
+- FastAPI is an internal AI boundary and has no direct access to Laravel or ERP databases.
+- Laravel-to-FastAPI requests use authenticated internal contracts and request IDs.
+- Native metrics are private; Laravel and ERP metrics are exposed through dedicated internal NGINX routes, while FastAPI metrics accept only the intended private host boundary.
+- Runtime Secrets are created outside Git; real `.env` files, databases, datasets, model artifacts, generated archives and backups are excluded from version control.
 
 ---
 
 ## 🤖 AI and machine learning
 
-The platform currently supports:
-
-- next-day production forecasting;
-- production anomaly scoring;
-- maintenance-risk prioritization;
-- role-aware explanations for supervisors and managers;
-- strict fact allowlists and grounding checks;
-- hallucinated-number and unsafe-claim rejection;
-- deterministic safe fallback explanations;
-- exact explanation-to-report binding.
-
-### Guarded explanation principle
+The platform supports next-day production forecasting, production anomaly scoring, maintenance-risk prioritization, verified model-registry inference, role-aware explanations, strict grounding, hallucinated-number rejection, safe fallbacks, and exact explanation-to-report binding.
 
 ```text
 Verified inference facts
         ↓
 Strict FastAPI contract
         ↓
-Private local Ollama
+Private Ollama (llama3:8b)
         ↓
-Grounding and safety validation
+Grounding + safety validation
         ↓
-Laravel AI Insights and reports
+Laravel AI Insights + reports
 ```
 
-The numeric inference result always remains authoritative.
+The numeric inference result remains authoritative even when the narrative service is unavailable.
 
 ---
 
 ## 🧃 Manufacturing domain
 
-The simulated environment models product families such as:
-
-- Valencia Premium;
-- Valencia Essentiel & Classics;
-- Valencia Lacté & Twist;
-- Valencia Ice Tea;
-- Valencia Juper, Maxi, Abtal & Plaisir.
-
-Typical production flow:
+The simulator models juice-manufacturing families including Valencia Premium, Valencia Essentiel & Classics, Valencia Lacté & Twist, Valencia Ice Tea, and Valencia Juper / Maxi / Abtal / Plaisir.
 
 ```text
 Pasteurisation → Mixing → Filling → Packaging
 ```
+
+---
+
+## ☸️ Kubernetes runtime
+
+The accepted local Minikube demonstration stack includes 2 Laravel replicas, 2 FastAPI replicas, 1 Sage ERP simulator, 1 NGINX gateway, 2 MySQL StatefulSets, 1 Redis StatefulSet, Prometheus, Grafana, kube-state-metrics, and blackbox exporter. Laravel and FastAPI are governed by two HPAs. Stateful data remains on persistent volumes and is never reset by the validation workflow.
+
+### Local browser access
+
+```text
+https://localhost:8443/login
+```
+
+---
+
+## 📈 Observability
+
+Phase 12 adds private native application metrics and platform monitoring.
+
+- Laravel native metrics;
+- FastAPI native metrics from both replicas;
+- simulated Sage ERP native metrics;
+- Redis-backed PHP metrics with a fast local-file fallback;
+- a dedicated non-persistent `smartfactory_metrics` Redis connection with bounded connect/read timeouts;
+- 17/17 healthy Prometheus targets;
+- 17 alerting rules;
+- **SmartFactory DSS — Kubernetes Overview** (9 panels);
+- **SmartFactory DSS — Application Observability** (17 panels).
+
+---
+
+## 🔐 Security features
+
+- secure authentication and account controls;
+- password policy and password-change workflow;
+- TOTP two-factor authentication and recovery codes;
+- role-based access control;
+- request validation, throttling and rate limiting;
+- append-oriented audit logging;
+- private internal AI and metrics endpoints;
+- secure-session HTTPS configuration;
+- encrypted/user-bound explanation snapshots;
+- safe failure isolation;
+- Kubernetes NetworkPolicies, ServiceAccounts and runtime Secret separation.
+
+---
+
+## 📊 Reporting
+
+Decision-support outputs can be exported as PDF, Excel and CSV. Reports separate verified numeric facts, model metadata/limitations and guarded AI narrative. Export does not silently execute a second prediction.
 
 ---
 
@@ -125,59 +175,22 @@ Pasteurisation → Mixing → Filling → Packaging
 | Web application | Laravel 12, PHP 8.3, Bootstrap |
 | AI service | FastAPI, Python 3.12 |
 | Data and cache | MySQL 8, Redis |
-| Machine learning | scikit-learn, verified local artifacts |
+| Machine learning | scikit-learn, versioned local model artifacts |
 | Local LLM | Ollama with `llama3:8b` |
-| Testing | PHPUnit, Pytest, Ruff |
+| Edge / reverse proxy | NGINX |
+| Containers | Docker / Docker Compose |
+| Orchestration | Kubernetes / Minikube / Kustomize |
+| Observability | Prometheus, Grafana, kube-state-metrics, blackbox exporter |
+| Testing | PHPUnit, Pytest, Ruff and controlled runtime validators |
 | Version control | Git and GitHub |
 
 ---
 
-## 🔐 Security features
+## 🧪 Validation strategy
 
-- secure authentication and account controls;
-- mandatory password rules;
-- two-factor authentication and recovery codes;
-- role-based access control;
-- request validation and rate limiting;
-- append-oriented audit logging;
-- private internal AI endpoints;
-- encrypted, user-bound explanation snapshots;
-- no direct browser-to-Ollama access;
-- safe failure isolation when AI services are unavailable.
+The repository includes source, regression and runtime validation for authentication/authorization, ERP synchronization contracts, production/maintenance/quality workflows, model inference, Ollama grounding/failure isolation, reporting, HTTPS/session behavior, Kubernetes manifests, NetworkPolicies, resource governance, native metrics privacy/performance, Prometheus and Grafana.
 
----
-
-## 📊 Reporting
-
-Verified AI results can be exported as:
-
-- PDF;
-- Excel;
-- CSV.
-
-Reports clearly separate:
-
-1. verified numeric facts;
-2. model metadata and limitations;
-3. guarded AI narrative.
-
-No second prediction is executed during export.
-
----
-
-## 🧪 Testing
-
-The repository includes focused and full regression tests for:
-
-- authentication and authorization;
-- ERP synchronization;
-- production and maintenance workflows;
-- quality and reporting;
-- model registry and inference contracts;
-- Ollama availability and failure isolation;
-- grounding and hallucination controls;
-- exact report-to-explanation binding;
-- simulated-data classification constraints.
+Validation is fail-fast and preserves databases, PVCs, Secrets and Git history.
 
 ---
 
@@ -185,34 +198,39 @@ The repository includes focused and full regression tests for:
 
 ```text
 smartfactory-dss/
-├── fastapi-ai/
 ├── laravel-app/
+├── fastapi-ai/
 ├── sage-erp-simulator/
-├── .gitattributes
-├── .gitignore
+├── docker/
+├── deploy/
+│   ├── compose/
+│   └── kubernetes/
+├── docs/
+├── compose.yaml
+├── compose.https.yaml
 └── README.md
 ```
 
 ---
 
-## 🌐 Local development endpoints
+## 🚀 Deployment documentation
 
-| Service | Address |
-|---|---|
-| Laravel DSS | `https://smartfactory-dss.test` |
-| FastAPI AI service | `http://127.0.0.1:8001` |
-| Ollama | `http://127.0.0.1:11434` |
+- `deploy/kubernetes/README.md`
+- `docs/deployment/kubernetes-https-login.md`
+- `docs/deployment/kubernetes-https-assets.md`
+- `docs/deployment/kubernetes-monitoring.md`
+- `docs/deployment/native-application-metrics.md`
 
 ---
 
 ## ⚠️ Prototype limitation
 
-This project is an academic and engineering prototype. Results must not be presented as validated industrial performance, guaranteed production commitments, or autonomous predictive-maintenance decisions.
+This repository demonstrates engineering architecture and decision-support capabilities with simulated industrial data. Results must not be presented as validated industrial performance, guaranteed production commitments, autonomous maintenance decisions, or a live Sage deployment until the corresponding real-system integration and validation are performed.
 
 ---
 
 <div align="center">
 
-**SmartFactory DSS — secure, explainable, and human-controlled decision support**
+**SmartFactory DSS — secure, explainable, observable and human-controlled decision support**
 
 </div>

@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: smartfactory-demo-quota
+spec:
+  hard:
+    pods: "20"
+    persistentvolumeclaims: "10"
+    requests.cpu: "4"
+    requests.memory: 6Gi
+    limits.cpu: "10"
+    limits.memory: 12Gi
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: smartfactory-container-defaults
+spec:
+  limits:
+    - type: Container
+      defaultRequest:
+        cpu: 50m
+        memory: 64Mi
+      default:
+        cpu: 500m
+        memory: 512Mi

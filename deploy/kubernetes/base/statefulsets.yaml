@@ -1,0 +1,221 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-dss
+spec:
+  serviceName: mysql-dss
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql-dss
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql-dss
+        app.kubernetes.io/component: dss-database
+    spec:
+      serviceAccountName: mysql-dss
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 999
+      containers:
+        - name: mysql
+          image: mysql:8.4.10
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mysql-dss-runtime
+          ports:
+            - name: mysql
+              containerPort: 3306
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1280Mi
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d/zz-smartfactory.cnf
+              subPath: zz-smartfactory.cnf
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: dss-mysql-data
+        - name: mysql-config
+          configMap:
+            name: mysql-shared-config
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mysql-erp
+spec:
+  serviceName: mysql-erp
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mysql-erp
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mysql-erp
+        app.kubernetes.io/component: erp-database
+    spec:
+      serviceAccountName: mysql-erp
+      terminationGracePeriodSeconds: 60
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+        fsGroup: 999
+      containers:
+        - name: mysql
+          image: mysql:8.4.10
+          imagePullPolicy: IfNotPresent
+          envFrom:
+            - secretRef:
+                name: mysql-erp-runtime
+          ports:
+            - name: mysql
+              containerPort: 3306
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1280Mi
+          startupProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 10
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -ec
+                - mysqladmin ping -h 127.0.0.1 -u root -p"$MYSQL_ROOT_PASSWORD"
+            periodSeconds: 20
+            timeoutSeconds: 5
+            failureThreshold: 6
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/mysql
+            - name: mysql-config
+              mountPath: /etc/mysql/conf.d/zz-smartfactory.cnf
+              subPath: zz-smartfactory.cnf
+              readOnly: true
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: erp-mysql-data
+        - name: mysql-config
+          configMap:
+            name: mysql-shared-config
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+spec:
+  serviceName: redis
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        app.kubernetes.io/component: cache
+    spec:
+      serviceAccountName: redis
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: redis
+          image: redis:8.0.5-bookworm
+          imagePullPolicy: IfNotPresent
+          command:
+            - redis-server
+            - --appendonly
+            - "yes"
+          ports:
+            - name: redis
+              containerPort: 6379
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 300m
+              memory: 256Mi
+          startupProbe:
+            exec:
+              command: [redis-cli, ping]
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            exec:
+              command: [redis-cli, ping]
+            periodSeconds: 10
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: [redis-cli, ping]
+            periodSeconds: 20
+            timeoutSeconds: 3
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: redis-data

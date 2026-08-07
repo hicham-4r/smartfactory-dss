@@ -22,7 +22,8 @@ class EloquentErpOperationalDataRepository implements
                 'productionLine',
             ])
             ->withCount('batches')
-            ->orderByDesc('planned_start_at');
+            ->orderByDesc('planned_start_at')
+            ->orderByDesc('id');
 
         $this->applyDateRange(
             $query,
@@ -136,7 +137,8 @@ class EloquentErpOperationalDataRepository implements
                 'operatorAssignment.operator',
             ])
             ->withCount('records')
-            ->orderByDesc('scheduled_start_at');
+            ->orderByDesc('scheduled_start_at')
+            ->orderByDesc('id');
 
         $this->applyDateRange(
             $query,
@@ -301,7 +303,8 @@ class EloquentErpOperationalDataRepository implements
                 'machine',
                 'processStage',
             ])
-            ->orderByDesc('interval_start_at');
+            ->orderByDesc('interval_start_at')
+            ->orderByDesc('id');
 
         $this->applyDateRange(
             $query,

@@ -1,0 +1,211 @@
+groups:
+  - name: smartfactory-platform
+    interval: 30s
+    rules:
+      - alert: SmartFactoryMonitoringTargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: monitoring
+        annotations:
+          summary: A SmartFactory monitoring target is down
+          description: The target {{ $labels.job }} / {{ $labels.instance }} has not been scraped successfully for two minutes.
+
+      - alert: SmartFactoryBlackboxProbeFailed
+        expr: probe_success == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: availability
+        annotations:
+          summary: A SmartFactory service probe is failing
+          description: The endpoint {{ $labels.instance }} has failed its blackbox probe for two minutes.
+
+      - alert: SmartFactoryDeploymentUnavailable
+        expr: kube_deployment_status_replicas_unavailable{namespace="smartfactory-dss"} > 0
+        for: 3m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: A SmartFactory Deployment has unavailable replicas
+          description: Deployment {{ $labels.deployment }} has unavailable replicas for three minutes.
+
+      - alert: SmartFactoryStatefulSetReplicaMismatch
+        expr: kube_statefulset_status_replicas_ready{namespace="smartfactory-dss"} != kube_statefulset_replicas{namespace="smartfactory-dss"}
+        for: 3m
+        labels:
+          severity: critical
+          component: kubernetes
+        annotations:
+          summary: A SmartFactory StatefulSet is not fully ready
+          description: StatefulSet {{ $labels.statefulset }} has a ready replica mismatch.
+
+      - alert: SmartFactoryContainerRestarted
+        expr: increase(kube_pod_container_status_restarts_total{namespace="smartfactory-dss"}[15m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          component: kubernetes
+        annotations:
+          summary: A SmartFactory container restarted
+          description: Container {{ $labels.container }} in Pod {{ $labels.pod }} restarted during the last fifteen minutes.
+
+      - alert: SmartFactoryPersistentVolumeClaimPending
+        expr: kube_persistentvolumeclaim_status_phase{namespace="smartfactory-dss",phase="Pending"} == 1
+        for: 5m
+        labels:
+          severity: critical
+          component: storage
+        annotations:
+          summary: A SmartFactory PVC is pending
+          description: PersistentVolumeClaim {{ $labels.persistentvolumeclaim }} has remained pending for five minutes.
+
+      - alert: SmartFactoryHpaAtMaximum
+        expr: kube_horizontalpodautoscaler_status_current_replicas{namespace="smartfactory-dss"} == kube_horizontalpodautoscaler_spec_max_replicas{namespace="smartfactory-dss"}
+        for: 5m
+        labels:
+          severity: warning
+          component: autoscaling
+        annotations:
+          summary: A SmartFactory HPA is at maximum replicas
+          description: HPA {{ $labels.horizontalpodautoscaler }} has remained at its maximum replica count for five minutes.
+  - name: smartfactory-native-applications
+    interval: 30s
+    rules:
+      - alert: SmartFactoryLaravelNativeTargetSetIncomplete
+        expr: count(up{job="smartfactory-laravel-native"}) != 1
+        for: 3m
+        labels:
+          severity: critical
+          component: laravel
+          layer: native-metrics
+        annotations:
+          summary: Laravel native metrics target set is incomplete
+          description: Exactly one Laravel native metrics target is required.
+
+      - alert: SmartFactoryFastApiNativeTargetSetIncomplete
+        expr: count(up{job="smartfactory-fastapi-native"}) != 2
+        for: 3m
+        labels:
+          severity: critical
+          component: fastapi
+          layer: native-metrics
+        annotations:
+          summary: FastAPI native metrics target set is incomplete
+          description: Exactly two FastAPI native metrics targets are required.
+
+      - alert: SmartFactoryErpNativeTargetSetIncomplete
+        expr: count(up{job="smartfactory-erp-native"}) != 1
+        for: 3m
+        labels:
+          severity: critical
+          component: erp
+          layer: native-metrics
+        annotations:
+          summary: ERP native metrics target set is incomplete
+          description: Exactly one ERP native metrics target is required.
+
+      - alert: SmartFactoryPhpMetricsBackendSetIncomplete
+        expr: (count(smartfactory_metrics_backend_up{backend="redis"}) or vector(0)) != 2
+        for: 3m
+        labels:
+          severity: critical
+          component: observability
+          layer: metrics-state
+        annotations:
+          summary: PHP metrics backend series are incomplete
+          description: Laravel and ERP must each expose one Redis metrics-backend health series.
+
+      - alert: SmartFactoryPhpMetricsBackendDown
+        expr: smartfactory_metrics_backend_up{backend="redis"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          component: observability
+          layer: metrics-state
+        annotations:
+          summary: A PHP native metrics backend is unavailable
+          description: The Redis-backed native metrics state for {{ $labels.service }} has remained unavailable for two minutes.
+
+      - alert: SmartFactoryOllamaDisabled
+        expr: smartfactory_ollama_enabled{service="fastapi-ai"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          component: ollama
+          layer: ai-runtime
+        annotations:
+          summary: Ollama is disabled for a FastAPI replica
+          description: FastAPI Pod {{ $labels.pod }} has reported Ollama disabled for five minutes.
+
+      - alert: SmartFactoryNativeScrapeSlow
+        expr: scrape_duration_seconds{job=~"smartfactory-(laravel|fastapi|erp)-native"} > 5
+        for: 2m
+        labels:
+          severity: warning
+          component: observability
+          layer: scrape
+        annotations:
+          summary: A native application scrape is slow
+          description: The {{ $labels.job }} scrape for {{ $labels.instance }} has exceeded five seconds for two minutes.
+
+      - alert: SmartFactoryApplicationServerErrorRatioHigh
+        expr: |
+          (
+            sum by (service) (
+              rate(smartfactory_http_requests_total{status_class="5xx"}[5m])
+            )
+            /
+            clamp_min(
+              sum by (service) (
+                rate(smartfactory_http_requests_total[5m])
+              ),
+              0.001
+            )
+          ) > 0.05
+          and on (service)
+          sum by (service) (
+            rate(smartfactory_http_requests_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          component: application
+          layer: http
+        annotations:
+          summary: Application server-error ratio is high
+          description: Service {{ $labels.service }} has exceeded a five-percent 5xx ratio under sustained traffic for five minutes.
+
+      - alert: SmartFactoryApplicationP95LatencyHigh
+        expr: |
+          histogram_quantile(
+            0.95,
+            sum by (service, le) (
+              rate(smartfactory_http_request_duration_seconds_bucket[5m])
+            )
+          ) > 1.5
+          and on (service)
+          sum by (service) (
+            rate(smartfactory_http_requests_total[5m])
+          ) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          component: application
+          layer: http
+        annotations:
+          summary: Application p95 latency is high
+          description: Service {{ $labels.service }} has exceeded 1.5 seconds p95 latency under sustained traffic for ten minutes.
+
+      - alert: SmartFactoryFastApiInflightRequestsHigh
+        expr: sum by (pod) (smartfactory_http_requests_in_flight{service="fastapi-ai"}) > 25
+        for: 5m
+        labels:
+          severity: warning
+          component: fastapi
+          layer: concurrency
+        annotations:
+          summary: FastAPI in-flight requests are high
+          description: FastAPI Pod {{ $labels.pod }} has sustained more than 25 in-flight requests for five minutes.

@@ -160,6 +160,39 @@ return [
             'database' => env('REDIS_DB', '0'),
         ],
 
+        'smartfactory_metrics' => [
+            'host' => env(
+                'SMARTFACTORY_METRICS_REDIS_HOST',
+                env(
+                    'REDIS_SERVICE_HOST',
+                    env('REDIS_HOST', '127.0.0.1')
+                )
+            ),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env(
+                'SMARTFACTORY_METRICS_REDIS_PORT',
+                env(
+                    'REDIS_SERVICE_PORT',
+                    env('REDIS_PORT', '6379')
+                )
+            ),
+            'database' => env('REDIS_DB', '0'),
+            'timeout' => (float) env(
+                'SMARTFACTORY_METRICS_REDIS_CONNECT_TIMEOUT_SECONDS',
+                0.5
+            ),
+            'read_timeout' => (float) env(
+                'SMARTFACTORY_METRICS_REDIS_READ_TIMEOUT_SECONDS',
+                0.5
+            ),
+            'retry_interval' => (int) env(
+                'SMARTFACTORY_METRICS_REDIS_RETRY_INTERVAL_MILLISECONDS',
+                100
+            ),
+            'persistent' => false,
+        ],
+
         'cache' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),

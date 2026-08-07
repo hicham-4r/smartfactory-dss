@@ -3,6 +3,7 @@
 use App\Http\Middleware\ApplySimulatedApiFailure;
 use App\Http\Middleware\ApplySimulatedDataQualityScenario;
 use App\Http\Middleware\VerifyErpApiToken;
+use App\Http\Middleware\RecordNativeMetrics;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,6 +19,10 @@ return Application::configure(
     )
     ->withMiddleware(
         function (Middleware $middleware): void {
+            $middleware->append(
+                RecordNativeMetrics::class
+            );
+
             $middleware->alias([
                 'erp.token' =>
                     VerifyErpApiToken::class,

@@ -12,6 +12,7 @@ from app.llm.clients.ollama import DisabledOllamaClient, OllamaHttpClient
 from app.llm.rate_limit import ExplanationRateLimiter
 from app.llm.service import ExplanationGenerationService
 from app.middleware.request_context import RequestContextMiddleware
+from app.observability.metrics import NativeMetricsMiddleware, NativeMetricsRegistry
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -35,6 +36,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         license_info={"name": "Internal prototype"},
     )
     app.state.settings = resolved
+    app.state.native_metrics = NativeMetricsRegistry(
+        service="fastapi-ai",
+        environment=resolved.app_env,
+        version=resolved.app_version,
+        ollama_enabled=resolved.ollama_enabled,
+    )
     app.state.inference_service = InferenceService(ModelRegistryLoader(resolved.model_root))
 
     ollama_client = (
@@ -53,5 +60,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     install_exception_handlers(app)
     app.include_router(api_router)
     app.add_middleware(RequestContextMiddleware, settings=resolved)
+    app.add_middleware(
+        NativeMetricsMiddleware,
+        registry=app.state.native_metrics,
+    )
 
     return app

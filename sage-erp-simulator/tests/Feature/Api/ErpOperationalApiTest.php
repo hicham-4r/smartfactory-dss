@@ -45,6 +45,143 @@ class ErpOperationalApiTest extends TestCase
         ];
     }
 
+    /**
+     * @return array<int, string>
+     */
+    private function allExternalIds(
+        string $endpoint
+    ): array {
+        $firstPage = $this
+            ->withHeaders($this->apiHeaders())
+            ->getJson(
+                $endpoint
+                . '?per_page=100&page=1'
+            );
+
+        $firstPage->assertOk();
+
+        $lastPage = (int) $firstPage->json(
+            'meta.last_page'
+        );
+
+        $externalIds = array_column(
+            $firstPage->json('data'),
+            'external_id'
+        );
+
+        for (
+            $page = 2;
+            $page <= $lastPage;
+            $page++
+        ) {
+            $response = $this
+                ->withHeaders($this->apiHeaders())
+                ->getJson(
+                    $endpoint
+                    . '?per_page=100&page='
+                    . $page
+                );
+
+            $response->assertOk();
+
+            $externalIds = array_merge(
+                $externalIds,
+                array_column(
+                    $response->json('data'),
+                    'external_id'
+                )
+            );
+        }
+
+        return array_values($externalIds);
+    }
+
+    public function test_operational_pagination_is_stable_complete_and_unique(): void
+    {
+        $cases = [
+            [
+                'endpoint' =>
+                    '/api/production-orders',
+
+                'model' =>
+                    ErpProductionOrder::class,
+
+                'order_column' =>
+                    'planned_start_at',
+            ],
+            [
+                'endpoint' =>
+                    '/api/production-batches',
+
+                'model' =>
+                    ErpProductionBatch::class,
+
+                'order_column' =>
+                    'scheduled_start_at',
+            ],
+            [
+                'endpoint' =>
+                    '/api/production-records',
+
+                'model' =>
+                    ErpProductionRecord::class,
+
+                'order_column' =>
+                    'interval_start_at',
+            ],
+        ];
+
+        foreach ($cases as $case) {
+            $model = $case['model'];
+            $column = $case['order_column'];
+            $endpoint = $case['endpoint'];
+
+            /*
+             * The fixture intentionally contains equal timestamps.
+             * Offset pagination therefore requires a unique tie-breaker.
+             */
+            $this->assertTrue(
+                $model::query()
+                    ->select($column)
+                    ->groupBy($column)
+                    ->havingRaw('COUNT(*) > 1')
+                    ->exists()
+            );
+
+            $expected = $model::query()
+                ->orderByDesc($column)
+                ->orderByDesc('id')
+                ->pluck('external_id')
+                ->all();
+
+            $firstScan = $this->allExternalIds(
+                $endpoint
+            );
+
+            $secondScan = $this->allExternalIds(
+                $endpoint
+            );
+
+            $this->assertSame(
+                $expected,
+                $firstScan,
+                "Unexpected deterministic order for {$endpoint}."
+            );
+
+            $this->assertSame(
+                $firstScan,
+                $secondScan,
+                "Repeated pagination changed order for {$endpoint}."
+            );
+
+            $this->assertCount(
+                count($expected),
+                array_unique($firstScan),
+                "Duplicate or omitted external IDs for {$endpoint}."
+            );
+        }
+    }
+
     public function test_operational_endpoints_filters_and_integrity(): void
     {
         /*
