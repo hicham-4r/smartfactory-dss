@@ -114,6 +114,18 @@ jobs:
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
+      - name: Prepare Laravel runtime directories
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p \
+            storage/framework/cache/data \
+            storage/framework/sessions \
+            storage/framework/testing \
+            storage/framework/views \
+            storage/logs \
+            bootstrap/cache
+
       - name: Create ephemeral APP_KEY
         shell: bash
         run: echo "APP_KEY=base64:$(php -r 'echo base64_encode(random_bytes(32));')" >> "$GITHUB_ENV"
@@ -178,6 +190,18 @@ jobs:
 
       - name: Install PHP dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Prepare simulator runtime directories
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          mkdir -p \
+            storage/framework/cache/data \
+            storage/framework/sessions \
+            storage/framework/testing \
+            storage/framework/views \
+            storage/logs \
+            bootstrap/cache
 
       - name: Create ephemeral APP_KEY
         shell: bash
@@ -288,13 +312,32 @@ jobs:
         run: |
           set -Eeuo pipefail
           MON="$GITHUB_WORKSPACE/deploy/kubernetes/monitoring/files"
+          SA="$RUNNER_TEMP/prometheus-serviceaccount"
+          mkdir -p "$SA"
+
+          # Production prometheus.yml references files Kubernetes mounts into the Pod.
+          # Hosted CI is not a Kubernetes Pod, so provide validation-only equivalents.
+          printf '%s\n' 'smartfactory-ci-validation-token' > "$SA/token"
+          openssl req \
+            -x509 \
+            -newkey rsa:2048 \
+            -sha256 \
+            -nodes \
+            -days 1 \
+            -subj '/CN=smartfactory-ci-validation' \
+            -keyout "$RUNNER_TEMP/prometheus-ci-ca.key" \
+            -out "$SA/ca.crt" \
+            >/dev/null 2>&1
+
           docker run --rm \
             -v "$MON:/etc/prometheus:ro" \
             --entrypoint /bin/promtool \
             "$PROMETHEUS_IMAGE" \
             check rules /etc/prometheus/alerts.yml
+
           docker run --rm \
             -v "$MON:/etc/prometheus:ro" \
+            -v "$SA:/var/run/secrets/kubernetes.io/serviceaccount:ro" \
             --entrypoint /bin/promtool \
             "$PROMETHEUS_IMAGE" \
             check config /etc/prometheus/prometheus.yml

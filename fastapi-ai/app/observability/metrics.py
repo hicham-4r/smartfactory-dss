@@ -82,34 +82,32 @@ class NativeMetricsRegistry:
             in_flight = self._in_flight
 
         service = self._escape(self.service)
+        environment = self._escape(self.environment)
+        version = self._escape(self.version)
+        ollama_enabled = 1 if self.ollama_enabled else 0
         lines = [
             "# HELP smartfactory_application_info Static application identity.",
             "# TYPE smartfactory_application_info gauge",
             (
-                'smartfactory_application_info{service="%s",environment="%s",'
-                'runtime="python",version="%s"} 1'
-            )
-            % (
-                service,
-                self._escape(self.environment),
-                self._escape(self.version),
+                f'smartfactory_application_info{{service="{service}",environment="{environment}",'
+                f'runtime="python",version="{version}"}} 1'
             ),
             "# HELP smartfactory_ollama_enabled Whether guarded local Ollama generation is enabled.",
             "# TYPE smartfactory_ollama_enabled gauge",
-            'smartfactory_ollama_enabled{service="%s"} %d'
-            % (service, 1 if self.ollama_enabled else 0),
+            f'smartfactory_ollama_enabled{{service="{service}"}} {ollama_enabled}',
             "# HELP smartfactory_http_requests_in_flight Current in-flight HTTP requests.",
             "# TYPE smartfactory_http_requests_in_flight gauge",
-            'smartfactory_http_requests_in_flight{service="%s"} %d'
-            % (service, in_flight),
+            f'smartfactory_http_requests_in_flight{{service="{service}"}} {in_flight}',
             "# HELP smartfactory_http_requests_total Total HTTP requests by bounded route and status class.",
             "# TYPE smartfactory_http_requests_total counter",
             "# HELP smartfactory_http_request_duration_seconds HTTP request duration histogram.",
             "# TYPE smartfactory_http_request_duration_seconds histogram",
             "# HELP smartfactory_metrics_state_started_timestamp_seconds Metrics-state start timestamp.",
             "# TYPE smartfactory_metrics_state_started_timestamp_seconds gauge",
-            'smartfactory_metrics_state_started_timestamp_seconds{service="%s"} %.3f'
-            % (service, self.started_at),
+            (
+                f'smartfactory_metrics_state_started_timestamp_seconds{{service="{service}"}} '
+                f"{self.started_at:.3f}"
+            ),
         ]
 
         for key in sorted(count, key=lambda item: (item.method, item.route, item.status_class)):
