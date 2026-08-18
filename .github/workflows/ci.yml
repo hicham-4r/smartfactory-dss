@@ -146,6 +146,7 @@ jobs:
       - name: Run Laravel regression tests
         env:
           APP_ENV: testing
+          APP_URL: https://localhost:8443
           CACHE_STORE: array
           DB_CONNECTION: sqlite
           DB_DATABASE: ":memory:"
@@ -245,7 +246,7 @@ jobs:
       - name: Ruff lint
         run: python -m ruff check app tests
 
-      - name: Pytest with project coverage policy
+      - name: Pytest with hosted non-live coverage floor
         run: >
           python -m pytest
           --ignore=tests/test_ollama_live.py
@@ -253,6 +254,7 @@ jobs:
           -m "not live_ollama"
           --cov=app
           --cov-report=term-missing
+          --cov-fail-under=87
 
   kubernetes-monitoring:
     name: Kubernetes + monitoring source validation
