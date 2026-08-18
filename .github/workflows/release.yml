@@ -1,0 +1,250 @@
+name: SmartFactory Release CD
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smartfactory-release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  preflight:
+    name: Release preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      publish: ${{ steps.release.outputs.publish }}
+      version: ${{ steps.release.outputs.version }}
+      release_tag: ${{ steps.release.outputs.release_tag }}
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve release mode
+        id: release
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" ]]; then
+            if [[ "$GITHUB_REF" != "refs/heads/main" ]]; then
+              echo "Manual CD dry-runs must be launched from main." >&2
+              exit 1
+            fi
+
+            short_sha="${GITHUB_SHA:0:12}"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "version=dry-run-${short_sha}" >> "$GITHUB_OUTPUT"
+            echo "release_tag=dry-run-${short_sha}" >> "$GITHUB_OUTPUT"
+
+            echo "CD MODE: DRY RUN"
+            echo "No registry login or image push will occur."
+            exit 0
+          fi
+
+          tag="$GITHUB_REF_NAME"
+
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Release tag must match vMAJOR.MINOR.PATCH exactly." >&2
+            exit 1
+          fi
+
+          git fetch --no-tags \
+            "https://github.com/${GITHUB_REPOSITORY}.git" \
+            main:refs/remotes/origin/main
+
+          tag_commit="$(git rev-list -n 1 "$tag")"
+          main_commit="$(git rev-parse origin/main)"
+
+          if [[ "$tag_commit" != "$main_commit" ]]; then
+            echo "Release tag must point to the current main commit." >&2
+            echo "Tag commit:  $tag_commit" >&2
+            echo "Main commit: $main_commit" >&2
+            exit 1
+          fi
+
+          version="${tag#v}"
+
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=$tag" >> "$GITHUB_OUTPUT"
+
+          echo "CD MODE: PUBLISH"
+          echo "Release tag: $tag"
+          echo "Version: $version"
+
+  build-publish:
+    name: Deliver ${{ matrix.name }}
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: laravel
+            dockerfile: docker/laravel/Dockerfile
+            title: SmartFactory DSS Laravel
+          - name: fastapi
+            dockerfile: docker/fastapi/Dockerfile
+            title: SmartFactory DSS FastAPI AI
+          - name: erp-simulator
+            dockerfile: docker/erp-simulator/Dockerfile
+            title: SmartFactory DSS Simulated Sage ERP
+          - name: nginx
+            dockerfile: docker/nginx/Dockerfile
+            title: SmartFactory DSS NGINX
+
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to personal GHCR
+        if: needs.preflight.outputs.publish == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image reference
+        id: image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          image="${REGISTRY}/${GITHUB_REPOSITORY_OWNER}/smartfactory-dss-${{ matrix.name }}"
+          image="$(printf '%s' "$image" | tr '[:upper:]' '[:lower:]')"
+
+          echo "name=$image" >> "$GITHUB_OUTPUT"
+          echo "version_ref=${image}:${{ needs.preflight.outputs.version }}" >> "$GITHUB_OUTPUT"
+          echo "sha_ref=${image}:sha-${GITHUB_SHA:0:12}" >> "$GITHUB_OUTPUT"
+          echo "latest_ref=${image}:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Build and optionally publish production image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/amd64
+          push: ${{ needs.preflight.outputs.publish == 'true' }}
+          tags: |
+            ${{ steps.image.outputs.version_ref }}
+            ${{ steps.image.outputs.sha_ref }}
+            ${{ steps.image.outputs.latest_ref }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.preflight.outputs.version }}
+            org.opencontainers.image.title=${{ matrix.title }}
+            org.opencontainers.image.description=SmartFactory DSS prototype delivery image
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.name }}
+
+      - name: Write delivery metadata
+        shell: bash
+        env:
+          IMAGE_NAME: ${{ steps.image.outputs.name }}
+          VERSION_REF: ${{ steps.image.outputs.version_ref }}
+          SHA_REF: ${{ steps.image.outputs.sha_ref }}
+          LATEST_REF: ${{ steps.image.outputs.latest_ref }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+          RELEASE_VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+          PUBLISH: ${{ needs.preflight.outputs.publish }}
+          COMPONENT: ${{ matrix.name }}
+        run: |
+          set -Eeuo pipefail
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import json
+          import os
+
+          payload = {
+              "component": os.environ["COMPONENT"],
+              "image": os.environ["IMAGE_NAME"],
+              "version_ref": os.environ["VERSION_REF"],
+              "sha_ref": os.environ["SHA_REF"],
+              "latest_ref": os.environ["LATEST_REF"],
+              "digest": os.environ["IMAGE_DIGEST"],
+              "release_version": os.environ["RELEASE_VERSION"],
+              "release_tag": os.environ["RELEASE_TAG"],
+              "source_revision": os.environ["GITHUB_SHA"],
+              "published": os.environ["PUBLISH"] == "true",
+              "registry": os.environ["REGISTRY"],
+              "repository": os.environ["GITHUB_REPOSITORY"],
+              "architecture": "linux/amd64",
+          }
+
+          output = Path(
+              f"smartfactory-delivery-{os.environ['COMPONENT']}.json"
+          )
+          output.write_text(
+              json.dumps(payload, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(output)
+          PY
+
+      - name: Upload delivery metadata
+        uses: actions/upload-artifact@v7
+        with:
+          name: smartfactory-delivery-${{ matrix.name }}-${{ needs.preflight.outputs.release_tag }}
+          path: smartfactory-delivery-${{ matrix.name }}.json
+          if-no-files-found: error
+          retention-days: 30
+
+  release-summary:
+    name: Delivery summary
+    needs:
+      - preflight
+      - build-publish
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Require successful delivery matrix
+        shell: bash
+        env:
+          MATRIX_RESULT: ${{ needs.build-publish.result }}
+          PUBLISH: ${{ needs.preflight.outputs.publish }}
+          VERSION: ${{ needs.preflight.outputs.version }}
+          RELEASE_TAG: ${{ needs.preflight.outputs.release_tag }}
+        run: |
+          set -Eeuo pipefail
+
+          if [[ "$MATRIX_RESULT" != "success" ]]; then
+            echo "Delivery matrix result: $MATRIX_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$PUBLISH" == "true" ]]; then
+            echo "SmartFactory CD publish completed."
+            echo "Version: $VERSION"
+            echo "Tag: $RELEASE_TAG"
+            echo "Registry: ghcr.io/${GITHUB_REPOSITORY_OWNER}"
+          else
+            echo "SmartFactory CD dry-run completed."
+            echo "No image was pushed."
+          fi
