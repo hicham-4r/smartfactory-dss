@@ -1,0 +1,331 @@
+name: SmartFactory CI
+
+on:
+  push:
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: smartfactory-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  KUBECTL_VERSION: v1.36.2
+  PROMETHEUS_IMAGE: prom/prometheus:v3.5.2
+
+jobs:
+  repository-safety:
+    name: Repository safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Reject committed secret-like files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          import subprocess
+
+          tracked = subprocess.check_output(["git", "ls-files"], text=True).splitlines()
+
+          bad_names = []
+          for raw in tracked:
+              p = Path(raw)
+              if p.name == ".env":
+                  bad_names.append(raw)
+              if p.suffix.lower() in {".key", ".pem", ".p12", ".pfx"}:
+                  bad_names.append(raw)
+
+          if bad_names:
+              raise SystemExit(
+                  "Tracked secret-like files detected: "
+                  + ", ".join(sorted(set(bad_names)))
+              )
+
+          private_key_marker = re.compile(
+              rb"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"
+          )
+          marker_hits = []
+
+          for raw in tracked:
+              p = Path(raw)
+              if not p.is_file():
+                  continue
+              try:
+                  data = p.read_bytes()
+              except OSError:
+                  continue
+              if private_key_marker.search(data):
+                  marker_hits.append(raw)
+
+          if marker_hits:
+              raise SystemExit(
+                  "Private-key marker detected in tracked files: "
+                  + ", ".join(sorted(marker_hits))
+              )
+
+          print("Repository safety scan: passed")
+          PY
+
+  laravel:
+    name: Laravel DSS tests + frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: laravel-app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3, bcmath, intl, gd, zip, redis, pcntl
+          coverage: none
+          tools: composer:v2
+        env:
+          fail-fast: true
+
+      - name: Composer cache path
+        id: composer-cache
+        shell: bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-laravel-composer-${{ hashFiles('laravel-app/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-laravel-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Create ephemeral APP_KEY
+        shell: bash
+        run: echo "APP_KEY=base64:$(php -r 'echo base64_encode(random_bytes(32));')" >> "$GITHUB_ENV"
+
+      - name: Run Laravel regression tests
+        env:
+          APP_ENV: testing
+          CACHE_STORE: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+        run: php artisan test --stop-on-failure
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: laravel-app/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Build frontend
+        run: npm run build
+
+  erp-simulator:
+    name: Simulated Sage ERP tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: sage-erp-simulator
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP 8.3
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: mbstring, pdo_sqlite, sqlite3, bcmath, intl, gd, zip, redis, pcntl
+          coverage: none
+          tools: composer:v2
+        env:
+          fail-fast: true
+
+      - name: Composer cache path
+        id: composer-cache
+        shell: bash
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Composer downloads
+        uses: actions/cache@v5
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: ${{ runner.os }}-erp-composer-${{ hashFiles('sage-erp-simulator/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-erp-composer-
+
+      - name: Install PHP dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Create ephemeral APP_KEY
+        shell: bash
+        run: echo "APP_KEY=base64:$(php -r 'echo base64_encode(random_bytes(32));')" >> "$GITHUB_ENV"
+
+      - name: Run simulator regression tests
+        env:
+          APP_ENV: testing
+          CACHE_STORE: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          ERP_API_TOKEN: test-erp-token
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+        run: php artisan test --stop-on-failure
+
+  fastapi:
+    name: FastAPI lint + tests + coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: fastapi-ai
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: fastapi-ai/pyproject.toml
+
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Ruff lint
+        run: python -m ruff check app tests
+
+      - name: Pytest with project coverage policy
+        run: >
+          python -m pytest
+          --ignore=tests/test_ollama_live.py
+          --ignore=tests/test_explanation_live.py
+          -m "not live_ollama"
+          --cov=app
+          --cov-report=term-missing
+
+  kubernetes-monitoring:
+    name: Kubernetes + monitoring source validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install checksum-verified kubectl
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cd "$RUNNER_TEMP"
+          curl --fail --location --silent --show-error \
+            -o kubectl \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl"
+          curl --fail --location --silent --show-error \
+            -o kubectl.sha256 \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl.sha256"
+          echo "$(cat kubectl.sha256)  kubectl" | sha256sum --check
+          chmod 0755 kubectl
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Render base and demo manifests
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          kubectl kustomize deploy/kubernetes/base > "$RUNNER_TEMP/base.yaml"
+          kubectl kustomize deploy/kubernetes/overlays/demo > "$RUNNER_TEMP/demo.yaml"
+
+      - name: Validate application manifest contracts
+        run: |
+          python3 deploy/kubernetes/scripts/validate-manifests.py \
+            --root deploy/kubernetes \
+            --base-rendered "$RUNNER_TEMP/base.yaml" \
+            --demo-rendered "$RUNNER_TEMP/demo.yaml"
+
+      - name: Render monitoring manifests
+        run: kubectl kustomize deploy/kubernetes/overlays/monitoring > "$RUNNER_TEMP/monitoring.yaml"
+
+      - name: Validate monitoring source contracts
+        run: |
+          python3 deploy/kubernetes/scripts/validate-monitoring-source.py \
+            --root deploy/kubernetes \
+            --rendered "$RUNNER_TEMP/monitoring.yaml"
+
+      - name: Validate Grafana dashboard JSON
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 -m json.tool deploy/kubernetes/monitoring/files/smartfactory-overview.json >/dev/null
+          python3 -m json.tool deploy/kubernetes/monitoring/files/smartfactory-application-observability.json >/dev/null
+
+      - name: Validate Prometheus config and alert rules
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          MON="$GITHUB_WORKSPACE/deploy/kubernetes/monitoring/files"
+          docker run --rm \
+            -v "$MON:/etc/prometheus:ro" \
+            --entrypoint /bin/promtool \
+            "$PROMETHEUS_IMAGE" \
+            check rules /etc/prometheus/alerts.yml
+          docker run --rm \
+            -v "$MON:/etc/prometheus:ro" \
+            --entrypoint /bin/promtool \
+            "$PROMETHEUS_IMAGE" \
+            check config /etc/prometheus/prometheus.yml
+
+  docker-build:
+    name: Docker build - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - name: laravel
+            dockerfile: docker/laravel/Dockerfile
+          - name: fastapi
+            dockerfile: docker/fastapi/Dockerfile
+          - name: erp-simulator
+            dockerfile: docker/erp-simulator/Dockerfile
+          - name: nginx
+            dockerfile: docker/nginx/Dockerfile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Build image without pushing
+        env:
+          DOCKER_BUILDKIT: "1"
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          docker build \
+            --file "${{ matrix.dockerfile }}" \
+            --tag "smartfactory-ci/${{ matrix.name }}:${{ github.sha }}" \
+            .
