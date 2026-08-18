@@ -92,17 +92,26 @@ class NativeMetricsRegistry:
                 f'smartfactory_application_info{{service="{service}",environment="{environment}",'
                 f'runtime="python",version="{version}"}} 1'
             ),
-            "# HELP smartfactory_ollama_enabled Whether guarded local Ollama generation is enabled.",
+            (
+                "# HELP smartfactory_ollama_enabled "
+                "Whether guarded local Ollama generation is enabled."
+            ),
             "# TYPE smartfactory_ollama_enabled gauge",
             f'smartfactory_ollama_enabled{{service="{service}"}} {ollama_enabled}',
             "# HELP smartfactory_http_requests_in_flight Current in-flight HTTP requests.",
             "# TYPE smartfactory_http_requests_in_flight gauge",
             f'smartfactory_http_requests_in_flight{{service="{service}"}} {in_flight}',
-            "# HELP smartfactory_http_requests_total Total HTTP requests by bounded route and status class.",
+            (
+                "# HELP smartfactory_http_requests_total "
+                "Total HTTP requests by bounded route and status class."
+            ),
             "# TYPE smartfactory_http_requests_total counter",
             "# HELP smartfactory_http_request_duration_seconds HTTP request duration histogram.",
             "# TYPE smartfactory_http_request_duration_seconds histogram",
-            "# HELP smartfactory_metrics_state_started_timestamp_seconds Metrics-state start timestamp.",
+            (
+                "# HELP smartfactory_metrics_state_started_timestamp_seconds "
+                "Metrics-state start timestamp."
+            ),
             "# TYPE smartfactory_metrics_state_started_timestamp_seconds gauge",
             (
                 f'smartfactory_metrics_state_started_timestamp_seconds{{service="{service}"}} '

@@ -13,10 +13,10 @@ from pydantic import (
 )
 
 from app.datasets.schema import (
+    DATA_CLASSIFICATION,
     DATASET_COLUMNS,
     DATASET_CONTRACT,
     DATASET_SCHEMA_VERSION,
-    DATA_CLASSIFICATION,
     MANIFEST_VERSION,
     SOURCE_APPLICATION,
 )

@@ -130,17 +130,6 @@ jobs:
         shell: bash
         run: echo "APP_KEY=base64:$(php -r 'echo base64_encode(random_bytes(32));')" >> "$GITHUB_ENV"
 
-      - name: Run Laravel regression tests
-        env:
-          APP_ENV: testing
-          CACHE_STORE: array
-          DB_CONNECTION: sqlite
-          DB_DATABASE: ":memory:"
-          MAIL_MAILER: array
-          QUEUE_CONNECTION: sync
-          SESSION_DRIVER: array
-        run: php artisan test --stop-on-failure
-
       - name: Setup Node.js 24
         uses: actions/setup-node@v6
         with:
@@ -153,6 +142,17 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+
+      - name: Run Laravel regression tests
+        env:
+          APP_ENV: testing
+          CACHE_STORE: array
+          DB_CONNECTION: sqlite
+          DB_DATABASE: ":memory:"
+          MAIL_MAILER: array
+          QUEUE_CONNECTION: sync
+          SESSION_DRIVER: array
+        run: php artisan test --stop-on-failure
 
   erp-simulator:
     name: Simulated Sage ERP tests
