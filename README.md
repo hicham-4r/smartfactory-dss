@@ -1,6 +1,6 @@
 <div align="center">
 
-#  SmartFactory DSS
+#   SmartFactory DSS
 
 ### AI-powered enterprise decision support for production, maintenance, quality, and industrial observability
 
