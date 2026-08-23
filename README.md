@@ -229,6 +229,13 @@ This repository demonstrates engineering architecture and decision-support capab
 
 ---
 
+##  Copyright Notice
+
+© 2026 Hicham. All rights reserved. This repository and its contents are provided **for educational and academic purposes only**. No part of this project may be copied, reproduced, redistributed, modified, published, or used for **commercial purposes** without the explicit written permission of the author.
+
+---
+
+
 <div align="center">
 
 **SmartFactory DSS — secure, explainable, observable and human-controlled decision support**
