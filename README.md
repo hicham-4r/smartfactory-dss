@@ -241,3 +241,4 @@ This repository demonstrates engineering architecture and decision-support capab
 **SmartFactory DSS — secure, explainable, observable and human-controlled decision support**
 
 </div>
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/hicham-4r/smartfactory-dss)
